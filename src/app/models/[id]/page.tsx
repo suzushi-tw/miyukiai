@@ -1,3 +1,4 @@
+import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { db } from '@/lib/prisma';
@@ -8,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+// Define params type correctly for Next.js 15
 type Props = {
   params: {
     id: string;
@@ -42,9 +44,24 @@ function formatFileSize(bytes: bigint) {
   return Math.round(Number(bytes) / Math.pow(1024, i)) + ' ' + sizes[i];
 }
 
+// Generate metadata for the page
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const model = await getModel(params.id);
+  if (!model) {
+    return {
+      title: 'Model Not Found',
+    };
+  }
+  
+  return {
+    title: `${model.name} - MisoAI`,
+    description: model.description || `${model.name} - ${model.modelType} for ${model.baseModel}`,
+  };
+}
+
+// Main page component
 export default async function ModelPage({ params }: Props) {
   const model = await getModel(params.id);
-  
   if (!model) {
     notFound();
   }
