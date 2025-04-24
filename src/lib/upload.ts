@@ -19,13 +19,13 @@ export const uploadFileToS3 = async (
             throw new Error(error.error || 'Failed to get upload URL');
         }
 
-        const { uploadUrl, fileUrl } = await response.json();
+        const { presignedUrl, fileUrl } = await response.json();
 
         // Upload to S3 with progress tracking
         await new Promise<void>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
 
-            xhr.open('PUT', uploadUrl);
+            xhr.open('PUT', presignedUrl);
             xhr.setRequestHeader('Content-Type', file.type);
 
             if (onProgress) {
