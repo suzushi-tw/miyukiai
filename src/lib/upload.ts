@@ -4,14 +4,13 @@ export const uploadFileToS3 = async (
     onProgress?: (progress: number) => void
 ): Promise<string> => {
     try {
-        // Get pre-signed URL from your API
         const response = await fetch('/api/s3url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                fileName: file.name,
-                fileType: file.type,
-                fileSize: file.size
+                contentType: file.type,  // Change fileType to contentType
+                folder: 'images',         // Add folder parameter
+                // Remove fileName and fileSize if not used by API
             }),
         });
 

@@ -42,14 +42,14 @@ export default function SignUp() {
         email,
         password,
         name,
-        callbackURL: "/dashboard" // Redirect after successful signup
+        callbackURL: "/" // Redirect after successful signup
       }, {
         onRequest: () => {
           setLoading(true);
         },
         onSuccess: () => {
           // User is auto signed in by default
-          router.push("/dashboard");
+          router.push("/");
         },
         onError: (ctx) => {
           setError(ctx.error.message);
@@ -160,7 +160,7 @@ export default function SignUp() {
               onClick={async () => {
                 await authClient.signIn.social({
                   provider: "google",
-                  callbackURL: "/dashboard"
+                  callbackURL: "/"
                 }, {
                   onRequest: () => {
                     setLoading(true);
@@ -186,7 +186,7 @@ export default function SignUp() {
               onClick={async () => {
                 await authClient.signIn.social({
                   provider: "github",
-                  callbackURL: "/dashboard"
+                  callbackURL: "/"
                 }, {
                   onRequest: () => {
                     setLoading(true);
