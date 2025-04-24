@@ -7,11 +7,12 @@ import {
   AbortMultipartUploadCommand
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { auth } from '@/lib/auth';
 
 // Configure your S3 client to point to R2
 const s3Client = new S3Client({
   region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,
+  endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
@@ -23,17 +24,40 @@ const BUCKET_NAME = process.env.R2_BUCKET_NAME || '';
 // Initiate a multipart upload
 export async function POST(request: Request) {
   try {
+    // Authenticate user
+    const sessionData = await auth.api.getSession({
+      query: { disableCookieCache: true }, 
+      headers: request.headers, 
+    });
+    
+    // Check if session exists and has user data
+    if (!sessionData?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     const { fileName, contentType } = await request.json();
+    
+    // Ensure the model files go in a dedicated folder with proper naming
+    const modelKey = `models/${sessionData.user.id}/${Date.now()}-${fileName}`;
     
     const command = new CreateMultipartUploadCommand({
       Bucket: BUCKET_NAME,
-      Key: fileName,
-      ContentType: contentType
+      Key: modelKey,
+      ContentType: contentType || 'application/octet-stream',
+      Metadata: {
+        userId: sessionData.user.id,
+        uploadTime: new Date().toISOString(),
+        modelName: fileName
+      }
     });
     
     const { UploadId } = await s3Client.send(command);
     
-    return NextResponse.json({ uploadId: UploadId, key: fileName });
+    return NextResponse.json({ 
+      uploadId: UploadId, 
+      key: modelKey,
+      fileUrl: `${process.env.R2_PUBLIC_DOMAIN}/${modelKey}`
+    });
   } catch (error) {
     console.error('Failed to initiate multipart upload:', error);
     return NextResponse.json({ error: 'Failed to initiate upload' }, { status: 500 });
@@ -42,29 +66,43 @@ export async function POST(request: Request) {
 
 // Get presigned URL for a specific part
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const uploadId = url.searchParams.get('uploadId');
-  const key = url.searchParams.get('key');
-  const partNumber = url.searchParams.get('partNumber');
-  
-  if (!uploadId || !key || !partNumber) {
-    return NextResponse.json(
-      { error: 'Missing required parameters' }, 
-      { status: 400 }
-    );
-  }
-
   try {
+    // Authenticate user
+    const sessionData = await auth.api.getSession({
+      query: { disableCookieCache: true }, 
+      headers: request.headers, 
+    });
+    
+    if (!sessionData?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const url = new URL(request.url);
+    const uploadId = url.searchParams.get('uploadId');
+    const key = url.searchParams.get('key');
+    const partNumber = url.searchParams.get('partNumber');
+    
+    if (!uploadId || !key || !partNumber) {
+      return NextResponse.json(
+        { error: 'Missing required parameters' }, 
+        { status: 400 }
+      );
+    }
+
+    // Ensure the user owns this upload (key should contain user ID)
+    if (!key.includes(`models/${sessionData.user.id}/`)) {
+      return NextResponse.json({ error: 'Unauthorized access to this upload' }, { status: 403 });
+    }
+
     const command = new UploadPartCommand({
       Bucket: BUCKET_NAME,
       Key: key,
       UploadId: uploadId,
-      PartNumber: parseInt(partNumber),
-      // 5MB minimum for all parts except the last one
-      ContentLength: 5 * 1024 * 1024
+      PartNumber: parseInt(partNumber)
+      // Remove ContentLength to allow flexible part sizes
     });
     
-    // Generate presigned URL for this part
+    // Generate presigned URL for this part (1 hour validity)
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
     
     return NextResponse.json({ signedUrl });
@@ -77,7 +115,22 @@ export async function GET(request: Request) {
 // Complete the multipart upload
 export async function PUT(request: Request) {
   try {
+    // Authenticate user
+    const sessionData = await auth.api.getSession({
+      query: { disableCookieCache: true }, 
+      headers: request.headers, 
+    });
+    
+    if (!sessionData?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     const { uploadId, key, parts } = await request.json();
+    
+    // Ensure the user owns this upload
+    if (!key.includes(`models/${sessionData.user.id}/`)) {
+      return NextResponse.json({ error: 'Unauthorized access to this upload' }, { status: 403 });
+    }
     
     const command = new CompleteMultipartUploadCommand({
       Bucket: BUCKET_NAME,
@@ -89,10 +142,12 @@ export async function PUT(request: Request) {
     });
     
     const result = await s3Client.send(command);
+    const fileUrl = `${process.env.R2_PUBLIC_DOMAIN}/${key}`;
     
     return NextResponse.json({ 
       success: true, 
-      location: result.Location 
+      fileUrl,
+      key
     });
   } catch (error) {
     console.error('Failed to complete multipart upload:', error);
@@ -102,18 +157,30 @@ export async function PUT(request: Request) {
 
 // Abort a multipart upload
 export async function DELETE(request: Request) {
-  const url = new URL(request.url);
-  const uploadId = url.searchParams.get('uploadId');
-  const key = url.searchParams.get('key');
-  
-  if (!uploadId || !key) {
-    return NextResponse.json(
-      { error: 'Missing required parameters' }, 
-      { status: 400 }
-    );
-  }
-
   try {
+    // Authenticate user
+    const sessionData = await auth.api.getSession({
+      query: { disableCookieCache: true }, 
+      headers: request.headers, 
+    });
+    
+    if (!sessionData?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const url = new URL(request.url);
+    const uploadId = url.searchParams.get('uploadId');
+    const key = url.searchParams.get('key');
+    
+    if (!uploadId || !key) {
+      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    }
+    
+    // Ensure the user owns this upload
+    if (!key.includes(`models/${sessionData.user.id}/`)) {
+      return NextResponse.json({ error: 'Unauthorized access to this upload' }, { status: 403 });
+    }
+
     const command = new AbortMultipartUploadCommand({
       Bucket: BUCKET_NAME,
       Key: key,

@@ -80,13 +80,23 @@ export default function UploadModelPage() {
                 setUploadProgress(progress);
             });
 
-            // Here you would save the model metadata to your database
-            // This would include the form values, image URLs, and model URL
-            console.log("Upload complete:", {
-                formData,
-                images: uploadedImageUrls,
-                modelUrl: uploadedModelUrl
+            const response = await fetch('/api/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ...formData,
+                    fileUrl: uploadedModelUrl,
+                    fileName: modelFile.name,
+                    fileSize: modelFile.size,
+                    images: uploadedImageUrls
+                }),
             });
+
+            if (!response.ok) {
+                throw new Error('Failed to save model to database');
+            }
 
             toast.success("Model uploaded successfully!");
             router.push("/dashboard");

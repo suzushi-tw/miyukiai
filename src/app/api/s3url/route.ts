@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+import { auth } from '@/lib/auth';
 
-// Initialize R2 client (R2 uses the S3 SDK with custom configuration)
-const r2Client = new S3Client({
-  region: 'auto', // R2 uses 'auto' region
+// Initialize R2 client
+const s3Client = new S3Client({
+  region: 'auto',
   endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
@@ -13,75 +14,57 @@ const r2Client = new S3Client({
   },
 });
 
-// Configuration
-const BUCKET_NAME = process.env.R2_BUCKET_NAME || '';
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const CUSTOM_DOMAIN = process.env.R2_PUBLIC_DOMAIN; // Optional custom domain for your bucket
-
 export async function POST(request: Request) {
   try {
+    // Need to await the Promise returned by getSession
+    const sessionData = await auth.api.getSession({
+        query: {
+            disableCookieCache: true,
+        }, 
+        headers: request.headers, 
+    });
+   
+    // Check if session exists and has user data
+    if (!sessionData?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Parse request body
     const body = await request.json();
-    const { fileName, fileType, fileSize } = body;
+    const { contentType, folder = 'general' } = body;
     
-    // Validate input
-    if (!fileName || !fileType || !fileSize) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+    // Simple validation
+    if (!contentType) {
+      return NextResponse.json({ error: 'Content type is required' }, { status: 400 });
     }
+    
+    // Create normalized folder path
+    const normalizedFolder = folder.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const fileExtension = contentType.split('/')[1] || 'bin';
+    const fileName = `${normalizedFolder}/${randomUUID()}.${fileExtension}`;
 
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(fileType)) {
-      return NextResponse.json(
-        { error: 'File type not allowed' },
-        { status: 400 }
-      );
-    }
-
-    // Validate file size
-    if (fileSize > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: 'File too large' },
-        { status: 400 }
-      );
-    }
-
-    // Generate a unique file key
-    const fileExtension = fileName.split('.').pop();
-    const uniqueFileName = `${randomUUID()}.${fileExtension}`;
-    const key = `uploads/${uniqueFileName}`;
-
-    // Create the command
+    // Create command
     const command = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-      ContentType: fileType,
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: fileName,
+      ContentType: contentType,
+      Metadata: {
+        userId: sessionData.user.id, // Now using the awaited session data
+        uploadTime: new Date().toISOString(),
+      }
     });
 
-    // Generate the presigned URL
-    const presignedUrl = await getSignedUrl(r2Client, command, {
-      expiresIn: 3600, // URL expires in 1 hour
-    });
+    // Generate presigned URL (valid for 5 minutes)
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
 
-    // Return the URL and the file key
-    // For R2, the public URL depends on if you're using a custom domain or the default R2 URL
-    const publicUrl = CUSTOM_DOMAIN 
-      ? `https://${CUSTOM_DOMAIN}/${key}`
-      : `https://${BUCKET_NAME}.${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
-      
+    // Return the URLs
     return NextResponse.json({
-      uploadUrl: presignedUrl,
-      fileKey: key,
-      fileUrl: publicUrl,
+      presignedUrl,
+      key: fileName,
+      fileUrl: `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`
     });
   } catch (error) {
-    console.error('Error generating R2 presigned URL:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate upload URL' },
-      { status: 500 }
-    );
+    console.error('Error generating presigned URL:', error);
+    return NextResponse.json({ error: 'Failed to generate upload URL' }, { status: 500 });
   }
 }

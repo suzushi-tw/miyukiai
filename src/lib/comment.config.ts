@@ -7,8 +7,6 @@ const prisma = new PrismaClient();
 
 
 export const auth = createBetterAuthAdapter(betterAuth);
-
-
 export const storage = createPrismaAdapter({
   db: prisma,
   auth: "better-auth" 
