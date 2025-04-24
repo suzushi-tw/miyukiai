@@ -32,6 +32,7 @@ export default function UploadModelPage() {
     const [modelFile, setModelFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
+    const [modelId, setModelId] = useState<string | null>(null);
     const previewInputRef = useRef<HTMLInputElement>(null!) as React.RefObject<HTMLInputElement>;
     const modelInputRef = useRef<HTMLInputElement>(null!) as React.RefObject<HTMLInputElement>;
 
@@ -49,21 +50,13 @@ export default function UploadModelPage() {
         },
     });
 
-    const onSubmit = async (formData: ModelFormSchema) => {
-        if (currentStep < 3) {
-            setCurrentStep(currentStep + 1);
-            return;
-        }
-
-        if (!modelFile) {
-            toast.error("Please upload a model file");
-            return;
-        }
-
+    // Save basic info and images after step 2
+    const saveBasicInfo = async () => {
         try {
             setIsUploading(true);
+            toast.info("Uploading preview images...");
 
-            // Upload preview images (keep this as is - regular upload is fine for small files)
+            // Upload preview images
             const uploadedImageUrls = await Promise.all(
                 previewImages.map(async (image) => {
                     const imageUrl = await uploadFileToS3(image.file);
@@ -75,11 +68,9 @@ export default function UploadModelPage() {
                 })
             );
 
-            // For large model file, use multipart upload
-            const uploadedModelUrl = await uploadLargeFileToS3(modelFile, (progress) => {
-                setUploadProgress(progress);
-            });
+            const formData = form.getValues();
 
+            // Create initial model record with everything except the model file
             const response = await fetch('/api/create', {
                 method: 'POST',
                 headers: {
@@ -87,9 +78,9 @@ export default function UploadModelPage() {
                 },
                 body: JSON.stringify({
                     ...formData,
-                    fileUrl: uploadedModelUrl,
-                    fileName: modelFile.name,
-                    fileSize: modelFile.size,
+                    fileUrl: "", // Empty initially
+                    fileName: "",
+                    fileSize: 0,
                     images: uploadedImageUrls
                 }),
             });
@@ -98,13 +89,71 @@ export default function UploadModelPage() {
                 throw new Error('Failed to save model to database');
             }
 
+            const data = await response.json();
+            setModelId(data.id);
+            toast.success("Basic information saved!");
+            
+            // Proceed to next step
+            setCurrentStep(3);
+        } catch (error) {
+            console.error("Error saving basic information:", error);
+            toast.error("Failed to save information");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    // Handle uploading the model file and updating the database
+    const uploadModelFile = async () => {
+        if (!modelFile || !modelId) {
+            toast.error("Model file or ID not found");
+            return;
+        }
+
+        try {
+            setIsUploading(true);
+            toast.info("Uploading model file...");
+
+            // Upload the large model file
+            const uploadedModelUrl = await uploadLargeFileToS3(modelFile, (progress) => {
+                setUploadProgress(progress);
+            });
+
+            // Update the existing record with the model file information
+            const response = await fetch(`/api/update-model/${modelId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    fileUrl: uploadedModelUrl,
+                    fileName: modelFile.name,
+                    fileSize: modelFile.size,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update model with file data');
+            }
+
             toast.success("Model uploaded successfully!");
             router.push("/dashboard");
         } catch (error) {
             console.error("Upload error:", error);
-            toast.error("Failed to upload model");
+            toast.error("Failed to upload model file");
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    // Handle form submission based on current step
+    const onSubmit = async (formData: ModelFormSchema) => {
+        if (currentStep === 1) {
+            setCurrentStep(2);
+        } else if (currentStep === 2) {
+            await saveBasicInfo();
+        } else if (currentStep === 3) {
+            await uploadModelFile();
         }
     };
 
@@ -221,6 +270,7 @@ export default function UploadModelPage() {
                                         type="button"
                                         variant="outline"
                                         onClick={() => setCurrentStep(currentStep - 1)}
+                                        disabled={isUploading}
                                     >
                                         <ArrowLeft className="mr-2 h-4 w-4" />
                                         Previous
@@ -240,11 +290,20 @@ export default function UploadModelPage() {
                                                         (currentStep === 3 && !modelFile)
                                                     }
                                                 >
-                                                    {currentStep < 3 ? (
+                                                    {currentStep === 1 ? (
                                                         <>
                                                             Next
                                                             <ArrowRight className="ml-2 h-4 w-4" />
                                                         </>
+                                                    ) : currentStep === 2 ? (
+                                                        isUploading ? (
+                                                            "Saving..."
+                                                        ) : (
+                                                            <>
+                                                                Save & Continue
+                                                                <ArrowRight className="ml-2 h-4 w-4" />
+                                                            </>
+                                                        )
                                                     ) : isUploading ? (
                                                         "Uploading..."
                                                     ) : (

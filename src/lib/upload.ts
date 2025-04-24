@@ -8,9 +8,8 @@ export const uploadFileToS3 = async (
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contentType: file.type,  // Change fileType to contentType
-                folder: 'images',         // Add folder parameter
-                // Remove fileName and fileSize if not used by API
+                contentType: file.type,
+                folder: 'images',
             }),
         });
 
@@ -56,29 +55,40 @@ export const uploadFileToS3 = async (
     }
 };
 
-
 export async function uploadLargeFileToS3(
     file: File,
     onProgress?: (progress: number) => void,
     uploadIdParam?: string,
     keyParam?: string
 ): Promise<string> {
+    // Initialize these variables outside the try block to use in the catch block
+    let uploadId: string | undefined = uploadIdParam;
+    let key: string | undefined = keyParam;
+    
     try {
-        // Step 1: Initiate the multipart upload
-        const initResponse = await fetch('/api/s3multipart', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                fileName: `models/${Date.now()}-${file.name}`,
-                contentType: file.type
-            })
-        });
+        // Step 1: Initiate the multipart upload if not resuming
+        if (!uploadId || !key) {
+            const initResponse = await fetch('/api/s3multipart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fileName: file.name,
+                    contentType: file.type
+                })
+            });
 
-        if (!initResponse.ok) {
-            throw new Error(`Failed to initiate upload: ${initResponse.statusText}`);
+            if (!initResponse.ok) {
+                throw new Error(`Failed to initiate upload: ${initResponse.statusText}`);
+            }
+
+            const initData = await initResponse.json();
+            uploadId = initData.uploadId;
+            key = initData.key;
+            
+            console.log(`Started new multipart upload with ID: ${uploadId}`);
+        } else {
+            console.log(`Resuming multipart upload with ID: ${uploadId}`);
         }
-
-        const { uploadId, key } = await initResponse.json();
 
         // Step 2: Split the file and upload parts
         const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
@@ -137,19 +147,31 @@ export async function uploadLargeFileToS3(
             throw new Error(`Failed to complete upload: ${completeResponse.statusText}`);
         }
 
-        // Just await the response, no need to store in 'result' if not used
         await completeResponse.json();
+        console.log(`Successfully completed multipart upload: ${key}`);
 
         // Return the URL of the uploaded file
         return `${process.env.NEXT_PUBLIC_R2_URL}/${key}`;
     } catch (error) {
         console.error("Multipart upload error:", error);
 
-        // If we have an uploadId and key, try to abort the upload
-        if (uploadIdParam && keyParam) {
-            await fetch(`/api/s3multipart?uploadId=${uploadIdParam}&key=${keyParam}`, {
-                method: 'DELETE'
-            }).catch(console.error);
+        // Use the local variables for cleanup, not just the parameters
+        if (uploadId && key) {
+            console.log(`Aborting failed multipart upload: ${uploadId} for ${key}`);
+            
+            try {
+                const abortResponse = await fetch(`/api/s3multipart?uploadId=${uploadId}&key=${key}`, {
+                    method: 'DELETE'
+                });
+                
+                if (abortResponse.ok) {
+                    console.log("Successfully aborted multipart upload");
+                } else {
+                    console.error("Failed to abort multipart upload:", await abortResponse.text());
+                }
+            } catch (abortError) {
+                console.error("Error while aborting multipart upload:", abortError);
+            }
         }
 
         throw error;

@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       presignedUrl,
       key: fileName,
-      fileUrl: `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`
+      fileUrl: `${process.env.R2_PUBLIC_URL}/${fileName}`
     });
   } catch (error) {
     console.error('Error generating presigned URL:', error);

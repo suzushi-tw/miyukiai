@@ -47,14 +47,14 @@ export async function POST(request: Request) {
         license,
         fileUrl,
         fileName,
-        fileSize: BigInt(fileSize),
+        fileSize: BigInt(fileSize || 0), // Provide default value
         userId: sessionData.user.id,
         downloads: 0,
-        // Create images in the same transaction
         images: {
           create: images.map((image: ImageUpload) => ({
             url: image.url,
-            metadata: image.metadata || {}
+            metadata: image.metadata || {},
+            userId: sessionData.user.id
           }))
         }
       },
@@ -64,7 +64,16 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ success: true, model });
+    // Convert BigInt to string for JSON serialization
+    const serializedModel = {
+      ...model,
+      id: model.id,
+      fileSize: model.fileSize.toString(),
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt
+    };
+
+    return NextResponse.json({ success: true, model: serializedModel });
   } catch (error) {
     console.error('Error saving model to database:', error);
     return NextResponse.json({ error: 'Failed to save model' }, { status: 500 });

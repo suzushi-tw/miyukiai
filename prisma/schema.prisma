@@ -38,16 +38,17 @@ model session {
 }
 
 model user {
-  id            String    @id
+  id            String       @id
   name          String
-  email         String    @unique
+  email         String       @unique
   emailVerified Boolean
   image         String?
-  createdAt     DateTime  @db.Timestamp(6)
-  updatedAt     DateTime  @db.Timestamp(6)
+  createdAt     DateTime     @db.Timestamp(6)
+  updatedAt     DateTime     @db.Timestamp(6)
   account       account[]
   session       session[]
   models        Model[]
+  images        ModelImage[] // Add this relation field
 }
 
 model Model {
@@ -76,11 +77,14 @@ model ModelImage {
   id        String   @id @default(cuid())
   modelId   String
   model     Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  userId    String   // Add the userId field
+  user      user     @relation(fields: [userId], references: [id]) // Add relation to user
   url       String
   metadata  Json?
   createdAt DateTime @default(now())
   
   @@index([modelId])
+  @@index([userId]) // Add index for userId for better query performance
 }
 
 model verification {
