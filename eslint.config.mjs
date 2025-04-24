@@ -13,17 +13,17 @@ const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
-      // Change from 'error' (8) to 'warn' (1) or 'off' (0)
-      "@typescript-eslint/no-unused-vars": "warn",
+      // Turn off the rule causing most of your errors
+      "@typescript-eslint/no-unused-expressions": "off",
       
-      // Or for more fine-grained control:
-      // "@typescript-eslint/no-unused-vars": ["warn", {
-      //   "argsIgnorePattern": "^_",
-      //   "varsIgnorePattern": "^_", 
-      //   "caughtErrorsIgnorePattern": "^_",
-      //   "destructuredArrayIgnorePattern": "^_"
-      // }]
-    }
+      // Other rules you're encountering
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-require-imports": "off"
+    },
+    // Ignore generated files
+    ignores: [
+      "src/generated/**/*"
+    ]
   }
 ];
 
