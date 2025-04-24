@@ -88,13 +88,7 @@ export function Navbar() {
           {/* Logo/Brand */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <Image
-                src="/next.svg"
-                alt="MisoAI Logo"
-                width={100}
-                height={24}
-                className="dark:invert"
-              />
+              <span className="text-xl font-bold text-primary">MiyukiAI</span>
             </Link>
           </div>
           

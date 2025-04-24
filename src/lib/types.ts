@@ -1,22 +1,33 @@
 import { UseFormReturn } from "react-hook-form";
-import { ModelFormSchema } from "./schemas";
+import { RefObject } from "react";
+import { ModelFormSchema } from "@/lib/schemas";
+import { ComfyMetadata } from "@/utils/getimgmetadata";
 
-export interface StepProps {
+// Define a common type for preview images that includes metadata
+export type PreviewImageType = {
+  file: File;
+  preview: string;
+  metadata?: ComfyMetadata;
+};
+
+export interface LicenseImagesStepProps {
   form: UseFormReturn<ModelFormSchema>;
-}
-
-export interface LicenseImagesStepProps extends StepProps {
-  previewImages: { file: File; preview: string }[];
-  previewInputRef: React.RefObject<HTMLInputElement>;
+  previewImages: PreviewImageType[];
+  previewInputRef: RefObject<HTMLInputElement>;
   handlePreviewUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   removePreviewImage: (index: number) => void;
 }
 
-export interface ModelUploadStepProps extends StepProps {
+export interface ModelUploadStepProps {
+  form: UseFormReturn<ModelFormSchema>;
   modelFile: File | null;
-  modelInputRef: React.RefObject<HTMLInputElement>;
+  modelInputRef: RefObject<HTMLInputElement>;
   isUploading: boolean;
   uploadProgress: number;
   handleModelUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  previewImages: { file: File; preview: string }[];
+  previewImages: PreviewImageType[];
+}
+
+export interface BasicInfoStepProps {
+  form: UseFormReturn<ModelFormSchema>;
 }

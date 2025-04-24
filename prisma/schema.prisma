@@ -47,6 +47,40 @@ model user {
   updatedAt     DateTime  @db.Timestamp(6)
   account       account[]
   session       session[]
+  models        Model[]
+}
+
+model Model {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?       @db.Text
+  version      String        @default("1.0")
+  modelType    String
+  baseModel    String
+  tags         String?
+  license      String?
+  userId       String
+  user         user          @relation(fields: [userId], references: [id])
+  fileUrl      String
+  fileSize     BigInt
+  fileName     String
+  downloads    Int           @default(0)
+  images       ModelImage[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+model ModelImage {
+  id        String   @id @default(cuid())
+  modelId   String
+  model     Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  url       String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  
+  @@index([modelId])
 }
 
 model verification {
