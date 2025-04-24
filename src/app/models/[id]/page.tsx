@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+import { Metadata, ResolvingMetadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { db } from '@/lib/prisma';
@@ -9,12 +9,11 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// Define params type correctly for Next.js 15
+// Define proper Next.js 15 props type
 type Props = {
-  params: {
-    id: string;
-  };
-};
+  params: Promise<{ id: string }>
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
+}
 
 // Fetch the model by ID
 async function getModel(id: string) {
@@ -44,9 +43,15 @@ function formatFileSize(bytes: bigint) {
   return Math.round(Number(bytes) / Math.pow(1024, i)) + ' ' + sizes[i];
 }
 
-// Generate metadata for the page
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const model = await getModel(params.id);
+// Generate metadata for the page - updated to match Next.js 15 pattern
+export async function generateMetadata(
+  { params }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  // Extract ID from params Promise
+  const { id } = await params;
+  
+  const model = await getModel(id);
   if (!model) {
     return {
       title: 'Model Not Found',
@@ -59,9 +64,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-// Main page component
-export default async function ModelPage({ params }: Props) {
-  const model = await getModel(params.id);
+// Main page component - updated to match Next.js 15 pattern
+export default async function ModelPage(props: Props) {
+  // Extract ID from params Promise
+  const { id } = await props.params;
+  
+  const model = await getModel(id);
   if (!model) {
     notFound();
   }
