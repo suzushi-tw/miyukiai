@@ -8,6 +8,12 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+type Props = {
+  params: {
+    id: string;
+  };
+};
+
 // Fetch the model by ID
 async function getModel(id: string) {
   const model = await db.model.findUnique({
@@ -36,7 +42,7 @@ function formatFileSize(bytes: bigint) {
   return Math.round(Number(bytes) / Math.pow(1024, i)) + ' ' + sizes[i];
 }
 
-export default async function ModelPage({ params }: { params: { id: string } }) {
+export default async function ModelPage({ params }: Props) {
   const model = await getModel(params.id);
   
   if (!model) {
