@@ -49,6 +49,7 @@ model user {
   session       session[]
   models        Model[]
   images        ModelImage[] // Add this relation field
+  socialLinks   SocialLink[]
 }
 
 model Model {
@@ -95,6 +96,20 @@ model verification {
   createdAt  DateTime? @db.Timestamp(6)
   updatedAt  DateTime? @db.Timestamp(6)
 }
+
+model SocialLink {
+  id        String   @id @default(cuid())
+  userId    String
+  platform  String
+  url       String
+  icon      String   // Store the icon name/identifier
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
 
 model comments {
   id        Int      @id @default(autoincrement())

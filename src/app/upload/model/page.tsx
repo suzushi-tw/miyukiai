@@ -20,10 +20,47 @@ import ProgressSteps from "@/components/step";
 import ModelUploadStep from "@/components/modelupload";
 import LicenseImagesStep from "@/components/licenseimage";
 import BasicInfoStep from "@/components/modelinfostep";
-import { uploadFileToS3, uploadLargeFileToS3 } from "@/lib/upload";
+import { uploadLargeFileToS3 } from "@/lib/upload";
 import { ModelFormSchema, modelFormSchema } from "@/lib/schemas";
 import { extractImageMetadata, ComfyMetadata } from "@/utils/getimgmetadata";
 
+// Direct image upload function with presigned URL
+const uploadImageDirectly = async (file: File): Promise<string> => {
+  try {
+    const response = await fetch('/api/s3url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contentType: file.type,
+        folder: 'previews', // Using 'previews' prefix for model preview images
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get upload URL');
+    }
+
+    const { presignedUrl, fileUrl } = await response.json();
+
+    // Upload to S3
+    const uploadResponse = await fetch(presignedUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type,
+      },
+      body: file,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error('Failed to upload image');
+    }
+
+    return fileUrl;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
+  }
+};
 
 export default function UploadModelPage() {
     const router = useRouter();
@@ -56,10 +93,10 @@ export default function UploadModelPage() {
             setIsUploading(true);
             toast.info("Uploading preview images...");
 
-            // Upload preview images
+            // Upload preview images using direct upload method
             const uploadedImageUrls = await Promise.all(
                 previewImages.map(async (image) => {
-                    const imageUrl = await uploadFileToS3(image.file);
+                    const imageUrl = await uploadImageDirectly(image.file);
                     // Return both URL and metadata
                     return {
                         url: imageUrl,
