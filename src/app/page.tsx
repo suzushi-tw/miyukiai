@@ -6,32 +6,10 @@ import { useInView } from 'react-intersection-observer';
 import { fetchModels } from '@/services/modelservice';
 import ModelCard from '@/components/Modelcard';
 import ModelCardSkeleton from '@/components/modelskeleton';
+import type { ApiModel, TransformedModel } from '@/types/model';
 
-
-interface ApiModel {
-  id: string;
-  name?: string;
-  description?: string | null;
-  version?: string;
-  modelType?: string;
-  baseModel?: string;
-  tags?: string | null;
-  downloads?: number;
-  fileSize?: number | string;
-  createdAt?: string | Date;
-  images?: Array<{
-    id: string;
-    url: string;
-    // Add other image properties as needed
-  }>;
-  user?: {
-    name?: string;
-    image?: string | null;
-  };
-}
-
-// Replace 'any' with the proper type
-function transformModel(apiModel: ApiModel) {
+// Function to transform API model to component model
+function transformModel(apiModel: ApiModel): TransformedModel {
   return {
     id: apiModel.id,
     name: apiModel.name || '',
@@ -41,7 +19,9 @@ function transformModel(apiModel: ApiModel) {
     baseModel: apiModel.baseModel || 'Unknown',
     tags: apiModel.tags || null,
     downloads: apiModel.downloads || 0,
-    fileSize: BigInt(apiModel.fileSize || 0),
+    fileSize: typeof apiModel.fileSize === 'string' 
+      ? BigInt(apiModel.fileSize) 
+      : apiModel.fileSize as bigint,
     createdAt: new Date(apiModel.createdAt || Date.now()),
     images: apiModel.images || [],
     user: {
