@@ -115,10 +115,10 @@ export const modelImage = pgTable("ModelImage", {
 export const comments = pgTable("comments", {
 	id: serial().primaryKey().notNull(),
 	page: varchar({ length: 256 }).default('default').notNull(),
-	threadId: integer(),
 	author: varchar({ length: 256 }).notNull(),
 	content: json().notNull(),
 	timestamp: timestamp({ mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	thread: integer(),
 }, (table) => [
 	index("comments_page_idx").using("btree", table.page.asc().nullsLast().op("text_ops")),
 ]);
