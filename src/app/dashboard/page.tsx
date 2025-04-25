@@ -53,6 +53,7 @@ interface Model {
     _count: {
         images: number;
     };
+    previewImage?: string; // Add this field
 }
 
 interface ModelImage {
@@ -95,18 +96,18 @@ function SocialIconByName({ name, ...props }: { name: string } & React.SVGProps<
 
 function formatDate(dateString: string) {
     try {
-      const date = new Date(dateString);
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        return "Unknown date";
-      }
-      return formatDistanceToNow(date, { addSuffix: true });
+        const date = new Date(dateString);
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            return "Unknown date";
+        }
+        return formatDistanceToNow(date, { addSuffix: true });
     } catch (err) {
-      console.error("Date parsing error:", err, dateString);
-      return "Unknown date";
+        console.error("Date parsing error:", err, dateString);
+        return "Unknown date";
     }
-  }
-  
+}
+
 
 const platformNames: { [key: string]: string } = {
     "twitter": "Twitter",
@@ -144,9 +145,9 @@ export default function UserProfilePage() {
 
                 if (!response.ok) {
                     if (response.status === 401) {
-                         setError('Unauthorized. Please log in again.');
-                         // Optionally redirect: router.push('/login');
-                         return;
+                        setError('Unauthorized. Please log in again.');
+                        // Optionally redirect: router.push('/login');
+                        return;
                     }
                     if (response.status === 404) {
                         setError('User profile not found.');
@@ -295,14 +296,19 @@ export default function UserProfilePage() {
                                             </p>
                                             {/* Model Preview Image Area */}
                                             <div className="relative aspect-video rounded-md overflow-hidden bg-accent/20 mb-2">
-                                                {/* Note: Displaying an actual preview requires the image URL */}
-                                                {model._count.images > 0 ? (
-                                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                                        <span className="text-xs">Preview Placeholder</span>
-                                                    </div>
+                                                {model._count.images > 0 && model.previewImage ? (
+                                                    <Image
+                                                        src={model.previewImage}
+                                                        alt={`Preview of ${model.name}`}
+                                                        fill
+                                                        className="object-cover"
+                                                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                                    />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                                        <span className="text-xs">No preview available</span>
+                                                        <span className="text-xs">
+                                                            {model._count.images > 0 ? "Loading preview..." : "No preview available"}
+                                                        </span>
                                                     </div>
                                                 )}
                                             </div>
@@ -364,7 +370,7 @@ export default function UserProfilePage() {
                             <p className="text-muted-foreground mb-6">
                                 You have not uploaded any images yet.
                             </p>
-                             {/* Optionally add a link/button to upload images */}
+                            {/* Optionally add a link/button to upload images */}
                         </div>
                     )}
                 </TabsContent>

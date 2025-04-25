@@ -70,6 +70,12 @@ export async function POST(request: Request) {
                 include: {
                     _count: {
                         select: { images: true }
+                    },
+                    images: {
+                        take: 1, // Get just the first image for preview
+                        select: {
+                            url: true
+                        }
                     }
                 }
             });
@@ -91,10 +97,16 @@ export async function POST(request: Request) {
             const imageCount = images.length;
             const joinedDate = formatDistanceToNow(new Date(user.createdAt), { addSuffix: true });
 
+            const modelsWithPreview = models.map(model => ({
+                ...model,
+                previewImage: model.images?.[0]?.url || null,
+                images: undefined // Remove the full images array to avoid sending too much data
+            }));
+
             // Return combined data
             return NextResponse.json(replaceBigInt({
                 user,
-                models,
+                models: modelsWithPreview,
                 images,
                 stats: {
                     totalDownloads,
