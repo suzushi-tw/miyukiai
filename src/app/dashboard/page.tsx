@@ -67,7 +67,7 @@ interface Model {
     _count: {
         images: number;
     };
-    previewImage?: string;
+    previewImage?: string | null;
 }
 
 interface ModelImage {
@@ -110,7 +110,6 @@ function SocialIconByName({ name, ...props }: { name: string } & React.SVGProps<
 
 function formatDate(dateString: string) {
     try {
-        console.log("Formatting date:", dateString);
         if (!dateString) {
             console.warn("Empty date string received");
             return formatDistanceToNow(new Date(), { addSuffix: true });
@@ -141,17 +140,14 @@ export default function UserProfilePage() {
     const router = useRouter();
     const { data: session, isPending } = authClient.useSession();
     const [profileData, setProfileData] = useState<UserProfileData | null>(null);
-    const [loading, setLoading] = useState(isPending);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteModelId, setDeleteModelId] = useState<string | null>(null);
     const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        if (isPending) {
-            setLoading(true);
-            return;
-        }
+        if (isPending) return;
 
         if (!session?.user) {
             router.push('/');
@@ -179,15 +175,21 @@ export default function UserProfilePage() {
                 }
                 const data: UserProfileData = await response.json();
                 setProfileData(data);
-                
+
                 // Initialize loading state for all images
                 const imageLoadingState: Record<string, boolean> = {};
-                [...data.models.filter(m => m.previewImage), ...data.images].forEach(item => {
-                    const url = 'previewImage' in item ? item.previewImage : item.url;
-                    if (url) {
-                        imageLoadingState[url] = true;
+                data.models.forEach(model => {
+                    if (model.previewImage) {
+                        imageLoadingState[model.previewImage] = true;
                     }
                 });
+
+                data.images.forEach(image => {
+                    if (image.url) {
+                        imageLoadingState[image.url] = true;
+                    }
+                });
+
                 setLoadingImages(imageLoadingState);
             } catch (err: unknown) {
                 console.error("Fetch error:", err);
@@ -206,7 +208,7 @@ export default function UserProfilePage() {
 
     // Function to handle when an image finishes loading
     const handleImageLoaded = (imageUrl: string) => {
-        setLoadingImages(prev => ({...prev, [imageUrl]: false}));
+        setLoadingImages(prev => ({ ...prev, [imageUrl]: false }));
     };
 
     // Function to handle model deletion
@@ -264,8 +266,36 @@ export default function UserProfilePage() {
 
     if (loading || isPending) {
         return (
-            <div className="container mx-auto max-w-6xl py-8 flex justify-center items-center min-h-[60vh]">
-                <Loader2 className="h-16 w-16 animate-spin text-muted-foreground" />
+            <div className="container mx-auto max-w-6xl py-8">
+                <div className="flex flex-col md:flex-row gap-6 items-center md:items-start mb-8">
+                    <Skeleton className="w-32 h-32 rounded-full" />
+                    <div className="flex-1 w-full">
+                        <Skeleton className="h-10 w-48 mb-4" />
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <Skeleton className="h-6 w-32" />
+                            <Skeleton className="h-6 w-24" />
+                            <Skeleton className="h-6 w-28" />
+                        </div>
+                    </div>
+                </div>
+
+                <Skeleton className="h-0.5 w-full my-8" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="border rounded-lg overflow-hidden">
+                            <div className="p-6">
+                                <Skeleton className="h-7 w-3/4 mb-3" />
+                                <Skeleton className="h-5 w-1/2 mb-4" />
+                                <Skeleton className="h-40 w-full rounded-md mb-4" />
+                                <div className="flex justify-between">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-4 w-16" />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }
@@ -381,10 +411,10 @@ export default function UserProfilePage() {
                                                 {model._count.images > 0 && model.previewImage ? (
                                                     <>
                                                         {loadingImages[model.previewImage] && (
-                                                            <div className="absolute inset-0 flex items-center justify-center z-10">
-                                                                <div className="w-full h-full bg-accent/10 flex flex-col items-center justify-center">
-                                                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
-                                                                    <span className="text-xs text-muted-foreground">Loading preview...</span>
+                                                            <div className="absolute inset-0 z-10">
+                                                                <Skeleton className="w-full h-full" />
+                                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                                                 </div>
                                                             </div>
                                                         )}
@@ -421,10 +451,7 @@ export default function UserProfilePage() {
                                                             variant="ghost"
                                                             size="icon"
                                                             className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                            }}
+                                                        // Remove preventDefault and stopPropagation
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                         </Button>
@@ -440,7 +467,10 @@ export default function UserProfilePage() {
                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                             <AlertDialogAction
                                                                 className="bg-red-500 hover:bg-red-600"
-                                                                onClick={() => handleDeleteModel(model.id)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteModel(model.id);
+                                                                }}
                                                                 disabled={isDeleting && deleteModelId === model.id}
                                                             >
                                                                 {isDeleting && deleteModelId === model.id ? (
@@ -463,7 +493,6 @@ export default function UserProfilePage() {
                             <p className="text-muted-foreground mb-6">
                                 You have not uploaded any models yet.
                             </p>
-                            {/* Optionally add a link/button to upload models */}
                         </div>
                     )}
                 </TabsContent>
@@ -473,15 +502,15 @@ export default function UserProfilePage() {
                     {images.length > 0 ? (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {images.map((image) => (
-                                <Link href={`/models/${image.model.id}`} key={image.id} className="group">
+                                <Link href={`/model/${image.model.id}`} key={image.id} className="group">
                                     <div className="relative aspect-square rounded-md overflow-hidden bg-accent/20">
                                         {image.url ? (
                                             <>
                                                 {loadingImages[image.url] && (
-                                                    <div className="absolute inset-0 flex items-center justify-center z-10">
-                                                        <div className="w-full h-full bg-accent/10 flex flex-col items-center justify-center">
-                                                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
-                                                            <span className="text-xs text-muted-foreground">Loading image...</span>
+                                                    <div className="absolute inset-0 z-10">
+                                                        <Skeleton className="w-full h-full" />
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                                         </div>
                                                     </div>
                                                 )}
