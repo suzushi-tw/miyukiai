@@ -66,3 +66,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create social link' }, { status: 500 });
   }
 }
+
+// Delete a social link (using DELETE method + query parameter)
+export async function DELETE(request: Request) {
+  try {
+    // Get the ID from the URL query parameter
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ error: 'Missing link ID' }, { status: 400 });
+    }
+    
+    const sessionData = await auth.api.getSession({
+      query: {
+        disableCookieCache: true,
+      },
+      headers: request.headers,
+    });
+    
+    if (!sessionData?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Check if the link belongs to the user
+    const socialLink = await db.socialLink.findUnique({
+      where: { id },
+    });
+    
+    if (!socialLink || socialLink.userId !== sessionData.user.id) {
+      return NextResponse.json({ error: 'Not found or not authorized' }, { status: 404 });
+    }
+    
+    // Delete the social link
+    await db.socialLink.delete({
+      where: { id },
+    });
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete social link' }, { status: 500 });
+  }
+}

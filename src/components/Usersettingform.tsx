@@ -341,17 +341,17 @@ export function UserSettingsForm() {
     }
   };
 
-  // Remove a social link
   const removeLink = async (id: string) => {
     try {
-      const response = await fetch(`/api/social-links/${id}`, {
+      // Use query parameter instead of path parameter
+      const response = await fetch(`/api/social-links?id=${id}`, {
         method: 'DELETE',
       });
-
+  
       if (!response.ok) {
         throw new Error('Failed to remove social link');
       }
-
+  
       setSocialLinks(socialLinks.filter(link => link.id !== id));
       
       toast.success("Link removed", {
