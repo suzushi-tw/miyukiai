@@ -98,7 +98,7 @@ export default async function UserProfilePage({
     const imageCount = images.length;
 
     return (
-        <div className="container max-w-6xl py-8">
+        <div className="container mx-auto max-w-6xl py-8">
             {/* Profile Header */}
             <div className="mb-8">
                 <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">

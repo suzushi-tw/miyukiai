@@ -32,20 +32,20 @@ export function Navbar() {
   const [showSignUp, setShowSignUp] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-  
+
   // Get user session
   const { data: session, isPending } = authClient.useSession()
-  
+
   // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 10)
     }
-    
+
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
-  
+
   // Handle sign out
   const handleSignOut = async () => {
     await authClient.signOut({
@@ -63,12 +63,12 @@ export function Navbar() {
     const openSignUp = () => setShowSignUp(true)
     const closeSignIn = () => setShowSignIn(false)
     const closeSignUp = () => setShowSignUp(false)
-    
+
     window.addEventListener('openSignIn', openSignIn)
     window.addEventListener('openSignUp', openSignUp)
     window.addEventListener('closeSignIn', closeSignIn)
     window.addEventListener('closeSignUp', closeSignUp)
-    
+
     return () => {
       window.removeEventListener('openSignIn', openSignIn)
       window.removeEventListener('openSignUp', openSignUp)
@@ -76,11 +76,18 @@ export function Navbar() {
       window.removeEventListener('closeSignUp', closeSignUp)
     }
   }, [])
-  
+
+  // Function to navigate to user dashboard
+  const goToDashboard = () => {
+    if (session?.user?.id) {
+      router.push(`/user/${session.user.id}`);
+    }
+  };
+
   return (
     <nav className={`sticky top-0 z-40 w-full ${
-      scrolled 
-        ? "bg-background/95 backdrop-blur-sm shadow-sm" 
+      scrolled
+        ? "bg-background/95 backdrop-blur-sm shadow-sm"
         : "bg-background"
       } transition-all duration-200 border-b border-border/40`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -91,7 +98,7 @@ export function Navbar() {
               <span className="text-xl font-bold text-primary">MiyukiAI</span>
             </Link>
           </div>
-          
+
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
             <div className="flex items-center space-x-4">
@@ -110,7 +117,7 @@ export function Navbar() {
               ))}
             </div>
           </div>
-          
+
           {/* Auth Buttons or User Menu with Create Button */}
           <div className="hidden md:flex items-center space-x-3">
             {isPending ? (
@@ -136,16 +143,16 @@ export function Navbar() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                
+
                 {/* User Avatar */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center space-x-2 rounded-full focus:outline-none focus:ring-2 focus:ring-primary">
                       <Avatar className="h-8 w-8">
                         {session.user.image ? (
-                          <AvatarImage 
-                            src={session.user.image} 
-                            alt={session.user.name || "User"} 
+                          <AvatarImage
+                            src={session.user.image}
+                            alt={session.user.name || "User"}
                           />
                         ) : (
                           <AvatarFallback>
@@ -163,7 +170,8 @@ export function Navbar() {
                       </div>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                    {/* Updated Dashboard Link */}
+                    <DropdownMenuItem onClick={goToDashboard} disabled={!session?.user?.id}>
                       <User className="mr-2 h-4 w-4" />
                       <span>Dashboard</span>
                     </DropdownMenuItem>
@@ -183,7 +191,7 @@ export function Navbar() {
               <div className="flex items-center space-x-3">
                 <Dialog open={showSignIn} onOpenChange={setShowSignIn}>
                   <DialogTrigger asChild>
-                    <button 
+                    <button
                       className="px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:text-foreground"
                     >
                       Login
@@ -193,10 +201,10 @@ export function Navbar() {
                     <SignIn />
                   </DialogContent>
                 </Dialog>
-                
+
                 <Dialog open={showSignUp} onOpenChange={setShowSignUp}>
                   <DialogTrigger asChild>
-                    <button 
+                    <button
                       className="px-4 py-2 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       Sign Up
@@ -209,7 +217,7 @@ export function Navbar() {
               </div>
             )}
           </div>
-          
+
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
             <button
@@ -256,9 +264,9 @@ export function Navbar() {
                     <div className="flex-shrink-0">
                       <Avatar className="h-10 w-10">
                         {session.user.image ? (
-                          <AvatarImage 
-                            src={session.user.image} 
-                            alt={session.user.name || "User"} 
+                          <AvatarImage
+                            src={session.user.image}
+                            alt={session.user.name || "User"}
                           />
                         ) : (
                           <AvatarFallback>
@@ -296,21 +304,24 @@ export function Navbar() {
                     </div>
                   </Link>
 
-                  <Link 
-                    href="/dashboard" 
-                    className="block px-3 py-2 rounded-md text-base font-medium text-foreground/70 hover:bg-secondary hover:text-foreground"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Dashboard
-                  </Link>
-                  <Link 
-                    href="/settings" 
+                  {/* Updated Dashboard Link */}
+                  {session.user.id && (
+                    <Link
+                      href={`/user/${session.user.id}`}
+                      className="block px-3 py-2 rounded-md text-base font-medium text-foreground/70 hover:bg-secondary hover:text-foreground"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                  )}
+                  <Link
+                    href="/settings"
                     className="block px-3 py-2 rounded-md text-base font-medium text-foreground/70 hover:bg-secondary hover:text-foreground"
                     onClick={() => setIsOpen(false)}
                   >
                     Settings
                   </Link>
-                  <button 
+                  <button
                     onClick={() => {
                       handleSignOut();
                       setIsOpen(false);
@@ -324,7 +335,7 @@ export function Navbar() {
                 <div className="flex items-center space-x-3 px-3">
                   <Dialog open={showSignIn} onOpenChange={setShowSignIn}>
                     <DialogTrigger asChild>
-                      <button 
+                      <button
                         className="block px-3 py-2 rounded-md text-base font-medium text-foreground/70 hover:text-foreground"
                         onClick={() => setIsOpen(false)}
                       >
@@ -335,10 +346,10 @@ export function Navbar() {
                       <SignIn />
                     </DialogContent>
                   </Dialog>
-                  
+
                   <Dialog open={showSignUp} onOpenChange={setShowSignUp}>
                     <DialogTrigger asChild>
-                      <button 
+                      <button
                         className="block px-4 py-2 rounded-full text-base font-medium bg-primary text-primary-foreground hover:bg-primary/90"
                         onClick={() => setIsOpen(false)}
                       >
