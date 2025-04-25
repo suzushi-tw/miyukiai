@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { user, session, account, model, modelImage, comments, rates } from "./schema";
+import { user, session, account, model, modelImage, socialLink, comments, rates } from "./schema";
 
 export const sessionRelations = relations(session, ({one}) => ({
 	user: one(user, {
@@ -12,6 +12,8 @@ export const userRelations = relations(user, ({many}) => ({
 	sessions: many(session),
 	accounts: many(account),
 	models: many(model),
+	modelImages: many(modelImage),
+	socialLinks: many(socialLink),
 }));
 
 export const accountRelations = relations(account, ({one}) => ({
@@ -33,6 +35,17 @@ export const modelImageRelations = relations(modelImage, ({one}) => ({
 	model: one(model, {
 		fields: [modelImage.modelId],
 		references: [model.id]
+	}),
+	user: one(user, {
+		fields: [modelImage.userId],
+		references: [user.id]
+	}),
+}));
+
+export const socialLinkRelations = relations(socialLink, ({one}) => ({
+	user: one(user, {
+		fields: [socialLink.userId],
+		references: [user.id]
 	}),
 }));
 

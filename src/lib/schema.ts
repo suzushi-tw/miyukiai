@@ -96,13 +96,20 @@ export const modelImage = pgTable("ModelImage", {
   url: text().notNull(),
   metadata: jsonb(),
   createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  userId: text().notNull(),
 }, (table) => [
   index("ModelImage_modelId_idx").using("btree", table.modelId.asc().nullsLast().op("text_ops")),
+  index("ModelImage_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
   foreignKey({
       columns: [table.modelId],
       foreignColumns: [model.id],
       name: "ModelImage_modelId_fkey"
     }).onUpdate("cascade").onDelete("cascade"),
+  foreignKey({
+      columns: [table.userId],
+      foreignColumns: [user.id],
+      name: "ModelImage_userId_fkey"
+    }).onUpdate("cascade").onDelete("restrict"),
 ]);
 
 export const comments = pgTable("comments", {
@@ -121,6 +128,23 @@ export const roles = pgTable("roles", {
   name: text().notNull(),
   canDelete: boolean().notNull(),
 });
+
+export const socialLink = pgTable("SocialLink", {
+  id: text().primaryKey().notNull(),
+  userId: text().notNull(),
+  platform: text().notNull(),
+  url: text().notNull(),
+  icon: text().notNull(),
+  createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+  index("SocialLink_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+  foreignKey({
+      columns: [table.userId],
+      foreignColumns: [user.id],
+      name: "SocialLink_userId_fkey"
+    }).onUpdate("cascade").onDelete("cascade"),
+]);
 
 export const rates = pgTable("rates", {
   userId: varchar({ length: 256 }).notNull(),

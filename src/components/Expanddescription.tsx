@@ -13,7 +13,7 @@ interface ExpandableDescriptionProps {
 export default function ExpandableDescription({
   description,
   maxLength = 300, // Default character limit
-  maxLines = 5, // Default line limit
+  maxLines = 20, // Default line limit
 }: ExpandableDescriptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 

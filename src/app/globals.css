@@ -3,7 +3,8 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
-@source '../../../node_modules/@fuma-comment/react/dist/**/*.js';
+/* Adjusted relative path */
+@source '../../node_modules/@fuma-comment/react/dist/**/*.js';
 
 @theme inline {
   --color-background: var(--background);
