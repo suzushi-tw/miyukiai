@@ -38,6 +38,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // --- Types ---
 interface SocialLink {
@@ -144,6 +145,7 @@ export default function UserProfilePage() {
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteModelId, setDeleteModelId] = useState<string | null>(null);
+    const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (isPending) {
@@ -177,6 +179,16 @@ export default function UserProfilePage() {
                 }
                 const data: UserProfileData = await response.json();
                 setProfileData(data);
+                
+                // Initialize loading state for all images
+                const imageLoadingState: Record<string, boolean> = {};
+                [...data.models.filter(m => m.previewImage), ...data.images].forEach(item => {
+                    const url = 'previewImage' in item ? item.previewImage : item.url;
+                    if (url) {
+                        imageLoadingState[url] = true;
+                    }
+                });
+                setLoadingImages(imageLoadingState);
             } catch (err: unknown) {
                 console.error("Fetch error:", err);
                 if (err instanceof Error) {
@@ -191,6 +203,11 @@ export default function UserProfilePage() {
 
         fetchData();
     }, [session, isPending, router]);
+
+    // Function to handle when an image finishes loading
+    const handleImageLoaded = (imageUrl: string) => {
+        setLoadingImages(prev => ({...prev, [imageUrl]: false}));
+    };
 
     // Function to handle model deletion
     const handleDeleteModel = async (modelId: string) => {
@@ -359,19 +376,27 @@ export default function UserProfilePage() {
                                             </div>
                                         </CardHeader>
                                         <CardContent>
-                                            {/* <p className="text-muted-foreground text-sm line-clamp-2 mb-2">
-                                                {model.description || "No description provided."}
-                                            </p> */}
                                             {/* Model Preview Image Area */}
                                             <div className="relative aspect-video rounded-md overflow-hidden bg-accent/20 mb-2">
                                                 {model._count.images > 0 && model.previewImage ? (
-                                                    <Image
-                                                        src={model.previewImage}
-                                                        alt={`Preview of ${model.name}`}
-                                                        fill
-                                                        className="object-cover"
-                                                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                                    />
+                                                    <>
+                                                        {loadingImages[model.previewImage] && (
+                                                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                                                <div className="w-full h-full bg-accent/10 flex flex-col items-center justify-center">
+                                                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
+                                                                    <span className="text-xs text-muted-foreground">Loading preview...</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        <Image
+                                                            src={model.previewImage}
+                                                            alt={`Preview of ${model.name}`}
+                                                            fill
+                                                            className="object-cover"
+                                                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                                            onLoadingComplete={() => handleImageLoaded(model.previewImage!)}
+                                                        />
+                                                    </>
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                                                         <span className="text-xs">
@@ -415,10 +440,7 @@ export default function UserProfilePage() {
                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                             <AlertDialogAction
                                                                 className="bg-red-500 hover:bg-red-600"
-                                                                onClick={(e) => {
-                                                                    e.preventDefault(); // Add this
-                                                                    handleDeleteModel(model.id);
-                                                                }}
+                                                                onClick={() => handleDeleteModel(model.id)}
                                                                 disabled={isDeleting && deleteModelId === model.id}
                                                             >
                                                                 {isDeleting && deleteModelId === model.id ? (
@@ -454,13 +476,24 @@ export default function UserProfilePage() {
                                 <Link href={`/models/${image.model.id}`} key={image.id} className="group">
                                     <div className="relative aspect-square rounded-md overflow-hidden bg-accent/20">
                                         {image.url ? (
-                                            <Image
-                                                src={image.url}
-                                                alt={`Image from ${image.model.name}`}
-                                                fill
-                                                className="object-cover transition-transform group-hover:scale-105"
-                                                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                                            />
+                                            <>
+                                                {loadingImages[image.url] && (
+                                                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                                                        <div className="w-full h-full bg-accent/10 flex flex-col items-center justify-center">
+                                                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
+                                                            <span className="text-xs text-muted-foreground">Loading image...</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <Image
+                                                    src={image.url}
+                                                    alt={`Image from ${image.model.name}`}
+                                                    fill
+                                                    className="object-cover transition-transform group-hover:scale-105"
+                                                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                                    onLoadingComplete={() => handleImageLoaded(image.url)}
+                                                />
+                                            </>
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                                                 <span className="text-xs">Image unavailable</span>
