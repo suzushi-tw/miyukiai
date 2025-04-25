@@ -56,11 +56,11 @@ export default function ExpandableDescription({
       >
         {isExpanded ? (
           <>
-            Show Less <ChevronUp className="ml-1 h-4 w-4" />
+            Show More <ChevronUp className="ml-1 h-4 w-4" />
           </>
         ) : (
           <>
-            Show More <ChevronDown className="ml-1 h-4 w-4" />
+            Show Less <ChevronDown className="ml-1 h-4 w-4" />
           </>
         )}
       </Button>

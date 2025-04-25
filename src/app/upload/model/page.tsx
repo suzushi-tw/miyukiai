@@ -1,10 +1,11 @@
+ 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, Upload, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,12 +16,13 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 import ProgressSteps from "@/components/step";
 import ModelUploadStep from "@/components/modelupload";
 import LicenseImagesStep from "@/components/licenseimage";
 import BasicInfoStep from "@/components/modelinfostep";
-import { uploadLargeFileToS3 } from "@/lib/upload";
+import { uploadLargeFileToS3, getIncompleteUploads } from "@/lib/multiuploads"; // Changed to multiuploads
 import { ModelFormSchema, modelFormSchema } from "@/lib/schemas";
 import { extractImageMetadata, ComfyMetadata } from "@/utils/getimgmetadata";
 
@@ -70,8 +72,30 @@ export default function UploadModelPage() {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
     const [modelId, setModelId] = useState<string | null>(null);
+    // New state for incomplete uploads
+    const [incompleteUploads, setIncompleteUploads] = useState<{
+        id: string;
+        fileName: string;
+        progress: number;
+        createdAt: Date;
+    }[]>([]);
+    const [resumingUpload, setResumingUpload] = useState(false);
     const previewInputRef = useRef<HTMLInputElement>(null!) as React.RefObject<HTMLInputElement>;
     const modelInputRef = useRef<HTMLInputElement>(null!) as React.RefObject<HTMLInputElement>;
+
+    // Check for incomplete uploads when component mounts
+    useEffect(() => {
+        const checkIncompleteUploads = async () => {
+            try {
+                const uploads = await getIncompleteUploads();
+                setIncompleteUploads(uploads);
+            } catch (error) {
+                console.error("Error fetching incomplete uploads:", error);
+            }
+        };
+        
+        checkIncompleteUploads();
+    }, []);
 
     // Initialize form
     const form = useForm<ModelFormSchema>({
@@ -151,7 +175,7 @@ export default function UploadModelPage() {
             setIsUploading(true);
             toast.info("Uploading model file...");
 
-            // Upload the large model file
+            // Upload the large model file with resume capabilities
             const uploadedModelUrl = await uploadLargeFileToS3(modelFile, (progress) => {
                 setUploadProgress(progress);
             });
@@ -229,6 +253,127 @@ export default function UploadModelPage() {
         setModelFile(file);
     };
 
+    // Handle resuming an upload
+    const handleResumeUpload = (uploadId: string, fileName: string) => {
+        setResumingUpload(true);
+        // Open file dialog
+        modelInputRef.current?.click();
+        
+        // Store original handler
+        const originalHandler = modelInputRef.current?.onchange;
+        
+        // Replace with resume-specific handler
+        if (modelInputRef.current) {
+            modelInputRef.current.onchange = (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const files = target.files;
+                
+                if (files && files[0]) {
+                    // Check if selected file matches the one we need to resume
+                    if (files[0].name === fileName) {
+                        setModelFile(files[0]);
+                        toast.info(`Resuming upload of ${fileName}...`);
+                        
+                        // Create a temporary model form if we don't have one yet
+                        const modelData = form.getValues();
+                        if (!modelId && (
+                            !modelData.name || 
+                            modelData.name === "" || 
+                            currentStep === 1
+                        )) {
+                            // Fill in temporary data for resuming
+                            form.setValue("name", fileName.split('.')[0] || "Resumed Model");
+                            form.setValue("description", "Resumed upload - please update description after upload completes");
+                            form.setValue("modelType", "Checkpoint");
+                            form.setValue("baseModel", "sd15");
+                            form.setValue("version", "1.0");
+                        }
+                        
+                        // Since we're resuming, create a model entry first if needed
+                        const continueUpload = () => {
+                            setCurrentStep(3);
+                            
+                            // Now upload with the resumed ID
+                            uploadLargeFileToS3(files[0], setUploadProgress, uploadId)
+                                .then(url => {
+                                    // Update the model with the file info
+                                    return fetch(`/api/update-model/${modelId}`, {
+                                        method: 'PATCH',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({
+                                            fileUrl: url,
+                                            fileName: files[0].name,
+                                            fileSize: files[0].size,
+                                        }),
+                                    });
+                                })
+                                .then(response => {
+                                    if (!response.ok) throw new Error('Failed to update model');
+                                    toast.success("Upload successfully resumed and completed!");
+                                    router.push("/dashboard");
+                                })
+                                .catch(error => {
+                                    toast.error(`Resume failed: ${error.message}`);
+                                })
+                                .finally(() => {
+                                    setResumingUpload(false);
+                                });
+                        };
+                        
+                        if (!modelId) {
+                            // Create a model entry first
+                            toast.info("Creating model entry for resumed upload...");
+                            setIsUploading(true);
+                            
+                            fetch('/api/create', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    ...form.getValues(),
+                                    fileUrl: "",
+                                    fileName: "",
+                                    fileSize: 0,
+                                    images: []
+                                }),
+                            })
+                            .then(response => {
+                                if (!response.ok) throw new Error('Failed to create model');
+                                return response.json();
+                            })
+                            .then(data => {
+                                setModelId(data.id);
+                                setIsUploading(false);
+                                continueUpload();
+                            })
+                            .catch(error => {
+                                toast.error(`Failed to create model: ${error.message}`);
+                                setResumingUpload(false);
+                                setIsUploading(false);
+                            });
+                        } else {
+                            // We already have a model ID, so just resume the upload
+                            continueUpload();
+                        }
+                    } else {
+                        toast.error("Selected file doesn't match the incomplete upload. Please select the correct file.");
+                        setResumingUpload(false);
+                    }
+                } else {
+                    setResumingUpload(false);
+                }
+                
+                // Restore original handler
+                if (modelInputRef.current && originalHandler) {
+                    modelInputRef.current.onchange = originalHandler as any;
+                }
+            };
+        }
+    };
+
     // Remove preview image
     const removePreviewImage = (index: number) => {
         const updatedImages = [...previewImages];
@@ -293,6 +438,36 @@ export default function UploadModelPage() {
                     <p className="text-muted-foreground mt-2">Share your AI model with the community</p>
                 </div>
 
+                {/* Show incomplete uploads if any exist */}
+                {incompleteUploads.length > 0 && (
+                    <Alert className="bg-amber-50 border-amber-200">
+                        <RefreshCw className="h-4 w-4" />
+                        <AlertTitle>Incomplete uploads found</AlertTitle>
+                        <AlertDescription>
+                            <div className="mt-2 space-y-3">
+                                {incompleteUploads.map(upload => (
+                                    <div key={upload.id} className="flex items-center justify-between bg-white p-2 rounded-md shadow-sm">
+                                        <div>
+                                            <p className="font-medium">{upload.fileName}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {upload.progress}% uploaded • Started {upload.createdAt.toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleResumeUpload(upload.id, upload.fileName)}
+                                            disabled={resumingUpload || isUploading}
+                                        >
+                                            {resumingUpload ? "Resuming..." : "Resume upload"}
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 {/* Progress indicator */}
                 <ProgressSteps currentStep={currentStep} />
 
@@ -307,7 +482,7 @@ export default function UploadModelPage() {
                                         type="button"
                                         variant="outline"
                                         onClick={() => setCurrentStep(currentStep - 1)}
-                                        disabled={isUploading}
+                                        disabled={isUploading || resumingUpload}
                                     >
                                         <ArrowLeft className="mr-2 h-4 w-4" />
                                         Previous
@@ -324,6 +499,7 @@ export default function UploadModelPage() {
                                                     type="submit"
                                                     disabled={
                                                         isUploading ||
+                                                        resumingUpload ||
                                                         (currentStep === 3 && !modelFile)
                                                     }
                                                 >
@@ -364,6 +540,15 @@ export default function UploadModelPage() {
                     </Form>
                 </div>
             </div>
+
+            {/* Hidden input for file selection during resume */}
+            <input 
+                type="file" 
+                style={{ display: 'none' }} 
+                ref={modelInputRef}
+                onChange={handleModelUpload}
+                accept=".safetensors,.ckpt,.pt,.bin"
+            />
         </div>
     );
 }

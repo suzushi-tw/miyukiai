@@ -389,7 +389,7 @@ export default function UserProfilePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {models.map((model) => (
                                 <Card className="h-full transition-shadow hover:shadow-md" key={model.id}>
-                                    <Link href={`/models/${model.id}`}>
+                                    <Link href={`/model/${model.id}`}>
                                         <CardHeader className="pb-2">
                                             <div className="flex justify-between items-start">
                                                 <div>

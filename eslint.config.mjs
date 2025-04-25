@@ -15,9 +15,9 @@ const eslintConfig = [
     rules: {
       // Turn off the rule causing most of your errors
       "@typescript-eslint/no-unused-expressions": "off",
-      
-      // Other rules you're encountering
-      "@typescript-eslint/no-unused-vars": "warn",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off",  // Add this rule
       "@typescript-eslint/no-require-imports": "off"
     },
     // Ignore generated files

@@ -11,7 +11,6 @@ import GalleryImageItem from "@/components/Galleryimageitem";
 import ExpandableDescription from "@/components/Expanddescription";
 import Link from "next/link";
 import { ComfyMetadata } from "@/utils/getimgmetadata";
-import { Comments } from "@fuma-comment/react";
 import { CommentsWithAuth } from "@/components/Comment";
 
 // Helper function for formatting file size
@@ -70,8 +69,6 @@ export default async function Page({
     notFound();
   }
 
-
-
   const tags = model.tags ? model.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
   const featuredImage = model.images.length > 0 ? model.images[0]?.url : '/placeholder-model.jpg';
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -86,32 +83,6 @@ export default async function Page({
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8 md:py-12">
-      {/* Hero Section */}
-      {/* <div className="relative mb-8 md:mb-12 aspect-[16/7] md:aspect-[16/5] rounded-xl overflow-hidden shadow-lg">
-                {featuredImage && (
-                    <Image
-                        src={featuredImage}
-                        fill
-                        alt={model.name}
-                        className="object-cover"
-                        priority
-                    />
-                )}
-                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col justify-end p-6 md:p-8">
-                    <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 drop-shadow-md">{model.name}</h1>
-                    <div className="flex items-center text-white/90 space-x-4 text-sm md:text-base">
-                        <div className="flex items-center space-x-1.5">
-                            <CalendarDays className="w-4 h-4" />
-                            <span>{formattedDate}</span>
-                        </div>
-                        <div className="flex items-center space-x-1.5">
-                            <Download className="w-4 h-4" />
-                            <span>{model.downloads.toLocaleString()} downloads</span>
-                        </div>
-                    </div>
-                </div>
-            </div> */}
-
       {/* Horizontal Image Gallery Section */}
       {galleryImages.length > 0 && (
         <div className="mb-8 md:mb-12">
@@ -131,6 +102,21 @@ export default async function Page({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content Area */}
         <div className="lg:col-span-2">
+          {/* Model Name and Basic Info */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold mb-2">{model.name}</h1>
+            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center">
+                <CalendarDays className="w-4 h-4 mr-1.5" />
+                <span>{formattedDate}</span>
+              </div>
+              <div className="flex items-center">
+                <Download className="w-4 h-4 mr-1.5" />
+                <span>{model.downloads.toLocaleString()} downloads</span>
+              </div>
+            </div>
+          </div>
+          
           {/* Description Card with Expandable Component */}
           <Card className="mb-6">
             <CardHeader>
@@ -138,12 +124,11 @@ export default async function Page({
             </CardHeader>
             <CardContent>
               {/* Use the client component here, adjusted maxLines */}
-              <ExpandableDescription description={model.description} maxLines={2} />
+              <ExpandableDescription description={model.description} maxLines={4} />
             </CardContent>
           </Card>
 
           <CommentsWithAuth pageId={id}/>
-
         </div>
 
         {/* Sidebar */}
@@ -168,6 +153,13 @@ export default async function Page({
               <CardTitle>Model Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
+              <div className="flex items-start">
+                <Download className="w-5 h-5 text-muted-foreground mr-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Downloads</p>
+                  <p className="font-medium">{model.downloads.toLocaleString()}</p>
+                </div>
+              </div>
               <div className="flex items-start">
                 <FileText className="w-5 h-5 text-muted-foreground mr-3 mt-0.5 flex-shrink-0" />
                 <div>
@@ -223,7 +215,7 @@ export default async function Page({
               <CardTitle>Creator</CardTitle>
             </CardHeader>
             <CardContent>
-              <Link href={`/user/${model.user.id}`} className="flex items-center space-x-4 group hover:bg-accent/50 p-2 rounded-md transition-colors -m-2"> {/* Added Link and styling */}
+              <Link href={`/user/${model.user.id}`} className="flex items-center space-x-4 group hover:bg-accent/50 p-2 rounded-md transition-colors -m-2">
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={model.user.image ?? undefined} alt={model.user.name ?? 'User avatar'} />
                   <AvatarFallback>
@@ -232,8 +224,8 @@ export default async function Page({
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-semibold group-hover:text-primary transition-colors">{model.user.name || "Unknown User"}</p> {/* Added fallback and hover effect */}
-                  {model.user.email && <p className="text-sm text-muted-foreground">{model.user.email}</p>} {/* Conditionally render email */}
+                  <p className="font-semibold group-hover:text-primary transition-colors">{model.user.name || "Unknown User"}</p>
+                  {model.user.email && <p className="text-sm text-muted-foreground">{model.user.email}</p>}
                 </div>
               </Link>
             </CardContent>
