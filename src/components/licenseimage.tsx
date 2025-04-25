@@ -45,13 +45,8 @@ export default function LicenseImagesStep({
     { value: "mit", label: "MIT" },
     { value: "apache", label: "Apache 2.0" },
     { value: "gpl", label: "GPL" },
-    { value: "cc-by", label: "Creative Commons Attribution" },
-    { value: "cc-by-sa", label: "CC Attribution-ShareAlike" },
-    { value: "cc-by-nc", label: "CC Attribution-NonCommercial" },
-    { value: "cc-by-nc-sa", label: "CC Attribution-NonCommercial-ShareAlike" },
-    { value: "cc-by-nd", label: "CC Attribution-NoDerivatives" },
-    { value: "cc-by-nc-nd", label: "CC Attribution-NonCommercial-NoDerivatives" },
-    { value: "cc0", label: "CC0 (Public Domain)" },
+    { value: "Illustrious", label: "Illustrious License" },
+    { value: "Stability AI", label: "Stability AI Community License Agreement" },
     { value: "custom", label: "Custom License" },
   ];
   
