@@ -8,7 +8,6 @@ import ModelCard from '@/components/Modelcard';
 import ModelCardSkeleton from '@/components/modelskeleton';
 import type { ApiModel, TransformedModel } from '@/types/model';
 
-// Function to transform API model to component model
 function transformModel(apiModel: ApiModel): TransformedModel {
   return {
     id: apiModel.id,
@@ -25,6 +24,7 @@ function transformModel(apiModel: ApiModel): TransformedModel {
     createdAt: new Date(apiModel.createdAt || Date.now()),
     images: apiModel.images || [],
     user: {
+      id: apiModel.user?.id || 'unknown-user-id', // Add the missing id property
       name: apiModel.user?.name || 'Unknown User',
       image: apiModel.user?.image || null
     }

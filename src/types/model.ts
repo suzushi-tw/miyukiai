@@ -12,16 +12,17 @@ export interface ApiModel {
     downloads: number;
     createdAt: string | Date;
     images?: Array<{
-      id: string;
-      url: string;
+        id: string;
+        url: string;
     }>;
     user?: {
-      name: string;
-      image: string | null;
+        id: string;
+        name: string;
+        image: string | null;
     };
-  }
-  
-  export interface TransformedModel {
+}
+
+export interface TransformedModel {
     id: string;
     name: string;
     description: string | null;
@@ -32,12 +33,10 @@ export interface ApiModel {
     downloads: number;
     fileSize: bigint;
     createdAt: Date;
-    images: Array<{
-      id: string;
-      url: string;
-    }>;
+    images: { url: string }[];
     user: {
-      name: string;
-      image: string | null;
+        id: string;    // Make sure this matches the User interface in ModelCard
+        name: string;
+        image: string | null;
     };
-  }
+}
