@@ -226,8 +226,9 @@ export async function uploadLargeFileToS3(
         // Clean up the saved state
         clearUploadState(fileId);
 
-        // Return the URL of the uploaded file
-        return completeData.fileUrl || `${process.env.NEXT_PUBLIC_R2_URL}/${key}`;
+        // Return the URL of the uploaded file from the server response
+        // Use only the URL provided by the server, not a client-side construction
+        return completeData.fileUrl;
     } catch (error) {
         console.error("Multipart upload error:", error);
         

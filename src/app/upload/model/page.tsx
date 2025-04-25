@@ -1,4 +1,3 @@
- 
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -22,46 +21,46 @@ import ProgressSteps from "@/components/step";
 import ModelUploadStep from "@/components/modelupload";
 import LicenseImagesStep from "@/components/licenseimage";
 import BasicInfoStep from "@/components/modelinfostep";
-import { uploadLargeFileToS3, getIncompleteUploads } from "@/lib/multiuploads"; // Changed to multiuploads
+import { uploadLargeFileToS3, getIncompleteUploads } from "@/lib/multiuploads";
 import { ModelFormSchema, modelFormSchema } from "@/lib/schemas";
 import { extractImageMetadata, ComfyMetadata } from "@/utils/getimgmetadata";
 
 // Direct image upload function with presigned URL
 const uploadImageDirectly = async (file: File): Promise<string> => {
-  try {
-    const response = await fetch('/api/s3url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contentType: file.type,
-        folder: 'previews', // Using 'previews' prefix for model preview images
-      }),
-    });
+    try {
+        const response = await fetch('/api/s3url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contentType: file.type,
+                folder: 'previews', // Using 'previews' prefix for model preview images
+            }),
+        });
 
-    if (!response.ok) {
-      throw new Error('Failed to get upload URL');
+        if (!response.ok) {
+            throw new Error('Failed to get upload URL');
+        }
+
+        const { presignedUrl, fileUrl } = await response.json();
+
+        // Upload to S3
+        const uploadResponse = await fetch(presignedUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': file.type,
+            },
+            body: file,
+        });
+
+        if (!uploadResponse.ok) {
+            throw new Error('Failed to upload image');
+        }
+
+        return fileUrl;
+    } catch (error) {
+        console.error('Error uploading image:', error);
+        throw error;
     }
-
-    const { presignedUrl, fileUrl } = await response.json();
-
-    // Upload to S3
-    const uploadResponse = await fetch(presignedUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': file.type,
-      },
-      body: file,
-    });
-
-    if (!uploadResponse.ok) {
-      throw new Error('Failed to upload image');
-    }
-
-    return fileUrl;
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    throw error;
-  }
 };
 
 export default function UploadModelPage() {
@@ -72,7 +71,6 @@ export default function UploadModelPage() {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
     const [modelId, setModelId] = useState<string | null>(null);
-    // New state for incomplete uploads
     const [incompleteUploads, setIncompleteUploads] = useState<{
         id: string;
         fileName: string;
@@ -80,8 +78,8 @@ export default function UploadModelPage() {
         createdAt: Date;
     }[]>([]);
     const [resumingUpload, setResumingUpload] = useState(false);
-    const previewInputRef = useRef<HTMLInputElement>(null!) as React.RefObject<HTMLInputElement>;
-    const modelInputRef = useRef<HTMLInputElement>(null!) as React.RefObject<HTMLInputElement>;
+    const previewInputRef = useRef<HTMLInputElement>(null);
+    const modelInputRef = useRef<HTMLInputElement>(null);
 
     // Check for incomplete uploads when component mounts
     useEffect(() => {
@@ -93,9 +91,14 @@ export default function UploadModelPage() {
                 console.error("Error fetching incomplete uploads:", error);
             }
         };
-        
+
         checkIncompleteUploads();
     }, []);
+
+    // Log state changes for debugging
+    useEffect(() => {
+        console.log(`State updated - modelId: ${modelId}, modelFile: ${modelFile?.name || 'none'}, step: ${currentStep}`);
+    }, [modelId, modelFile, currentStep]);
 
     // Initialize form
     const form = useForm<ModelFormSchema>({
@@ -111,17 +114,17 @@ export default function UploadModelPage() {
         },
     });
 
-    // Save basic info and images after step 2
-    const saveBasicInfo = async () => {
-        try {
-            setIsUploading(true);
-            toast.info("Uploading preview images...");
+    // ------- Form Submission Logic -------
 
-            // Upload preview images using direct upload method
+    // Core function to create model in database
+    const createModelRecord = async (fileInfo?: { url: string, name: string, size: number }) => {
+        try {
+            const formData = form.getValues();
+
+            // Upload preview images if we have any
             const uploadedImageUrls = await Promise.all(
                 previewImages.map(async (image) => {
                     const imageUrl = await uploadImageDirectly(image.file);
-                    // Return both URL and metadata
                     return {
                         url: imageUrl,
                         metadata: image.metadata || {},
@@ -129,9 +132,7 @@ export default function UploadModelPage() {
                 })
             );
 
-            const formData = form.getValues();
-
-            // Create initial model record with everything except the model file
+            // Create initial model record
             const response = await fetch('/api/create', {
                 method: 'POST',
                 headers: {
@@ -139,10 +140,11 @@ export default function UploadModelPage() {
                 },
                 body: JSON.stringify({
                     ...formData,
-                    fileUrl: "", // Empty initially
-                    fileName: "",
-                    fileSize: 0,
-                    images: uploadedImageUrls
+                    fileUrl: fileInfo?.url || "",
+                    fileName: fileInfo?.name || "",
+                    fileSize: fileInfo?.size || 0,
+                    images: uploadedImageUrls,
+                    status: fileInfo ? "published" : "draft"
                 }),
             });
 
@@ -152,30 +154,70 @@ export default function UploadModelPage() {
 
             const data = await response.json();
             setModelId(data.id);
-            toast.success("Basic information saved!");
-            
+            return data.id;
+        } catch (error) {
+            console.error("Error creating model record:", error);
+            throw error;
+        }
+    };
+
+    // Save basic info and images (Step 1 -> 2)
+    const saveBasicInfo = async () => {
+        try {
+            setIsUploading(true);
+            toast.info("Saving basic information...");
+
+            // Only create model record if we have images to save
+            if (previewImages.length > 0) {
+                toast.info("Uploading preview images...");
+                const newModelId = await createModelRecord();
+                toast.success("Basic information and images saved!");
+            }
+
             // Proceed to next step
             setCurrentStep(3);
         } catch (error) {
-            console.error("Error saving basic information:", error);
-            toast.error("Failed to save information");
+            console.error("Error saving information:", error);
+            toast.error(`Failed to save information: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsUploading(false);
         }
     };
 
-    // Handle uploading the model file and updating the database
+    // Upload the model file and update the database (Step 3)
     const uploadModelFile = async () => {
-        if (!modelFile || !modelId) {
-            toast.error("Model file or ID not found");
+        if (!modelFile) {
+            toast.error("Please select a model file first");
             return;
         }
 
         try {
             setIsUploading(true);
-            toast.info("Uploading model file...");
+            toast.info(`Starting upload of ${modelFile.name}...`);
 
-            // Upload the large model file with resume capabilities
+            // If we don't have a model ID yet, create one first with complete data
+            if (!modelId) {
+                toast.info("Creating model record...");
+
+                // First upload the model file
+                const uploadedModelUrl = await uploadLargeFileToS3(modelFile, (progress) => {
+                    setUploadProgress(progress);
+                });
+
+                // Then create the model record with everything
+                await createModelRecord({
+                    url: uploadedModelUrl,
+                    name: modelFile.name,
+                    size: modelFile.size
+                });
+
+                toast.success("Model uploaded and published successfully!");
+                router.push("/dashboard");
+                return;
+            }
+
+            // We already have a model ID, so just upload the file and update the record
+            toast.info(`Uploading ${modelFile.name}...`);
             const uploadedModelUrl = await uploadLargeFileToS3(modelFile, (progress) => {
                 setUploadProgress(progress);
             });
@@ -190,6 +232,7 @@ export default function UploadModelPage() {
                     fileUrl: uploadedModelUrl,
                     fileName: modelFile.name,
                     fileSize: modelFile.size,
+                    status: "published" // Mark as published
                 }),
             });
 
@@ -197,11 +240,11 @@ export default function UploadModelPage() {
                 throw new Error('Failed to update model with file data');
             }
 
-            toast.success("Model uploaded successfully!");
+            toast.success("Model uploaded and published successfully!");
             router.push("/dashboard");
         } catch (error) {
             console.error("Upload error:", error);
-            toast.error("Failed to upload model file");
+            toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsUploading(false);
         }
@@ -210,6 +253,11 @@ export default function UploadModelPage() {
     // Handle form submission based on current step
     const onSubmit = async (formData: ModelFormSchema) => {
         if (currentStep === 1) {
+            // Basic validation before proceeding
+            if (!formData.name || !formData.modelType) {
+                toast.error("Please fill in all required fields");
+                return;
+            }
             setCurrentStep(2);
         } else if (currentStep === 2) {
             await saveBasicInfo();
@@ -217,6 +265,8 @@ export default function UploadModelPage() {
             await uploadModelFile();
         }
     };
+
+    // ------- File Handling Logic -------
 
     // Handle preview image upload
     const handlePreviewUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,7 +278,6 @@ export default function UploadModelPage() {
             const newImagesPromises = Array.from(files).map(async file => {
                 // Extract metadata from the image
                 const metadata = await extractImageMetadata(file);
-
                 return {
                     file,
                     preview: URL.createObjectURL(file),
@@ -237,8 +286,9 @@ export default function UploadModelPage() {
             });
 
             const newImages = await Promise.all(newImagesPromises);
-
             setPreviewImages([...previewImages, ...newImages]);
+
+            // Reset the file input
             if (previewInputRef.current) previewInputRef.current.value = '';
         } catch (error) {
             console.error("Error processing images:", error);
@@ -251,127 +301,9 @@ export default function UploadModelPage() {
         const file = e.target.files?.[0];
         if (!file) return;
         setModelFile(file);
-    };
 
-    // Handle resuming an upload
-    const handleResumeUpload = (uploadId: string, fileName: string) => {
-        setResumingUpload(true);
-        // Open file dialog
-        modelInputRef.current?.click();
-        
-        // Store original handler
-        const originalHandler = modelInputRef.current?.onchange;
-        
-        // Replace with resume-specific handler
-        if (modelInputRef.current) {
-            modelInputRef.current.onchange = (e: Event) => {
-                const target = e.target as HTMLInputElement;
-                const files = target.files;
-                
-                if (files && files[0]) {
-                    // Check if selected file matches the one we need to resume
-                    if (files[0].name === fileName) {
-                        setModelFile(files[0]);
-                        toast.info(`Resuming upload of ${fileName}...`);
-                        
-                        // Create a temporary model form if we don't have one yet
-                        const modelData = form.getValues();
-                        if (!modelId && (
-                            !modelData.name || 
-                            modelData.name === "" || 
-                            currentStep === 1
-                        )) {
-                            // Fill in temporary data for resuming
-                            form.setValue("name", fileName.split('.')[0] || "Resumed Model");
-                            form.setValue("description", "Resumed upload - please update description after upload completes");
-                            form.setValue("modelType", "Checkpoint");
-                            form.setValue("baseModel", "sd15");
-                            form.setValue("version", "1.0");
-                        }
-                        
-                        // Since we're resuming, create a model entry first if needed
-                        const continueUpload = () => {
-                            setCurrentStep(3);
-                            
-                            // Now upload with the resumed ID
-                            uploadLargeFileToS3(files[0], setUploadProgress, uploadId)
-                                .then(url => {
-                                    // Update the model with the file info
-                                    return fetch(`/api/update-model/${modelId}`, {
-                                        method: 'PATCH',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                        },
-                                        body: JSON.stringify({
-                                            fileUrl: url,
-                                            fileName: files[0].name,
-                                            fileSize: files[0].size,
-                                        }),
-                                    });
-                                })
-                                .then(response => {
-                                    if (!response.ok) throw new Error('Failed to update model');
-                                    toast.success("Upload successfully resumed and completed!");
-                                    router.push("/dashboard");
-                                })
-                                .catch(error => {
-                                    toast.error(`Resume failed: ${error.message}`);
-                                })
-                                .finally(() => {
-                                    setResumingUpload(false);
-                                });
-                        };
-                        
-                        if (!modelId) {
-                            // Create a model entry first
-                            toast.info("Creating model entry for resumed upload...");
-                            setIsUploading(true);
-                            
-                            fetch('/api/create', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                    ...form.getValues(),
-                                    fileUrl: "",
-                                    fileName: "",
-                                    fileSize: 0,
-                                    images: []
-                                }),
-                            })
-                            .then(response => {
-                                if (!response.ok) throw new Error('Failed to create model');
-                                return response.json();
-                            })
-                            .then(data => {
-                                setModelId(data.id);
-                                setIsUploading(false);
-                                continueUpload();
-                            })
-                            .catch(error => {
-                                toast.error(`Failed to create model: ${error.message}`);
-                                setResumingUpload(false);
-                                setIsUploading(false);
-                            });
-                        } else {
-                            // We already have a model ID, so just resume the upload
-                            continueUpload();
-                        }
-                    } else {
-                        toast.error("Selected file doesn't match the incomplete upload. Please select the correct file.");
-                        setResumingUpload(false);
-                    }
-                } else {
-                    setResumingUpload(false);
-                }
-                
-                // Restore original handler
-                if (modelInputRef.current && originalHandler) {
-                    modelInputRef.current.onchange = originalHandler as any;
-                }
-            };
-        }
+        // Reset the file input
+        if (e.target) e.target.value = '';
     };
 
     // Remove preview image
@@ -382,22 +314,146 @@ export default function UploadModelPage() {
         setPreviewImages(updatedImages);
     };
 
+    // ------- Resume Upload Logic -------
+
+    // Handle resuming an upload
+    const handleResumeUpload = (uploadId: string, fileName: string) => {
+        setResumingUpload(true);
+
+        // Guide user to select the file
+        toast.info(`Please select the file "${fileName}" to resume upload`);
+        modelInputRef.current?.click();
+
+        // Store original handler
+        const originalHandler = modelInputRef.current?.onchange;
+
+        // Replace with resume-specific handler
+        if (modelInputRef.current) {
+            modelInputRef.current.onchange = (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const files = target.files;
+
+                if (files && files[0]) {
+                    // Verify it's the correct file
+                    if (files[0].name === fileName) {
+                        setModelFile(files[0]);
+                        toast.info(`Resuming upload of ${fileName}...`);
+
+                        // Set form defaults for resumed uploads
+                        if (!form.getValues().name) {
+                            const modelName = fileName.split('.')[0] || "Resumed Model";
+                            form.setValue("name", modelName);
+                            form.setValue("description", "Resumed upload - please update description");
+                            form.setValue("modelType", "Checkpoint");
+                            form.setValue("baseModel", "sd15");
+                        }
+
+                        // Create model record if needed
+                        const resumeProcess = async () => {
+                            setIsUploading(true);
+                            try {
+                                let modelRecordId = modelId;
+
+                                // Create model record if we don't have one
+                                if (!modelRecordId) {
+                                    const formData = form.getValues();
+                                    const response = await fetch('/api/create', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            ...formData,
+                                            fileUrl: "",
+                                            fileName: files[0].name,
+                                            fileSize: files[0].size,
+                                            images: []
+                                        }),
+                                    });
+
+                                    if (!response.ok) {
+                                        throw new Error("Failed to create model entry");
+                                    }
+
+                                    const data = await response.json();
+                                    modelRecordId = data.id;
+                                    setModelId(modelRecordId);
+                                }
+
+                                // Resume the upload
+                                setCurrentStep(3);
+                                const fileUrl = await uploadLargeFileToS3(
+                                    files[0],
+                                    setUploadProgress,
+                                    uploadId
+                                );
+
+                                // Update model with file info
+                                const updateResponse = await fetch(`/api/update-model/${modelRecordId}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        fileUrl: fileUrl,
+                                        fileName: files[0].name,
+                                        fileSize: files[0].size,
+                                        status: "published"
+                                    }),
+                                });
+
+                                if (!updateResponse.ok) {
+                                    throw new Error("Failed to update model");
+                                }
+
+                                toast.success("Upload successfully completed!");
+                                router.push("/dashboard");
+                            } catch (error) {
+                                console.error("Resume error:", error);
+                                toast.error(`Resume failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                            } finally {
+                                setIsUploading(false);
+                                setResumingUpload(false);
+
+                                // Restore original handler
+                                if (modelInputRef.current && originalHandler) {
+                                    modelInputRef.current.onchange = originalHandler as any;
+                                }
+                            }
+                        };
+
+                        resumeProcess();
+                    } else {
+                        toast.error("Selected file doesn't match the incomplete upload");
+                        setResumingUpload(false);
+
+                        // Restore original handler
+                        if (modelInputRef.current && originalHandler) {
+                            modelInputRef.current.onchange = originalHandler as any;
+                        }
+                    }
+                } else {
+                    setResumingUpload(false);
+
+                    // Restore original handler
+                    if (modelInputRef.current && originalHandler) {
+                        modelInputRef.current.onchange = originalHandler as any;
+                    }
+                }
+            };
+        }
+    };
+
+    // ------- UI Rendering Logic -------
+
     // Get step content based on current step
     const getStepContent = () => {
         switch (currentStep) {
             case 1:
-                return (
-                    <BasicInfoStep
-                        form={form}
-                    />
-                );
+                return <BasicInfoStep form={form} />;
 
             case 2:
                 return (
                     <LicenseImagesStep
                         form={form}
                         previewImages={previewImages}
-                        previewInputRef={previewInputRef}
+                        previewInputRef={previewInputRef as React.RefObject<HTMLInputElement>}
                         handlePreviewUpload={handlePreviewUpload}
                         removePreviewImage={removePreviewImage}
                     />
@@ -408,7 +464,7 @@ export default function UploadModelPage() {
                     <ModelUploadStep
                         form={form}
                         modelFile={modelFile}
-                        modelInputRef={modelInputRef}
+                        modelInputRef={modelInputRef as React.RefObject<HTMLInputElement>}
                         isUploading={isUploading}
                         uploadProgress={uploadProgress}
                         handleModelUpload={handleModelUpload}
@@ -450,7 +506,7 @@ export default function UploadModelPage() {
                                         <div>
                                             <p className="font-medium">{upload.fileName}</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {upload.progress}% uploaded • Started {upload.createdAt.toLocaleString()}
+                                                {upload.progress}% uploaded • Started {new Date(upload.createdAt).toLocaleString()}
                                             </p>
                                         </div>
                                         <Button
@@ -513,12 +569,12 @@ export default function UploadModelPage() {
                                                             "Saving..."
                                                         ) : (
                                                             <>
-                                                                Save & Continue
+                                                                Next Step
                                                                 <ArrowRight className="ml-2 h-4 w-4" />
                                                             </>
                                                         )
                                                     ) : isUploading ? (
-                                                        "Uploading..."
+                                                        `Uploading (${uploadProgress}%)...`
                                                     ) : (
                                                         <>
                                                             Publish Model
@@ -541,10 +597,10 @@ export default function UploadModelPage() {
                 </div>
             </div>
 
-            {/* Hidden input for file selection during resume */}
-            <input 
-                type="file" 
-                style={{ display: 'none' }} 
+            {/* Hidden input for file uploads */}
+            <input
+                type="file"
+                style={{ display: 'none' }}
                 ref={modelInputRef}
                 onChange={handleModelUpload}
                 accept=".safetensors,.ckpt,.pt,.bin"
