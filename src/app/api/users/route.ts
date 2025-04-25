@@ -3,27 +3,50 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/prisma';
 import { formatDistanceToNow } from 'date-fns';
 
-function replaceBigInt(data: any): any {
+// Define a recursive type to replace 'any'
+type JsonValue = 
+  | string 
+  | number 
+  | boolean 
+  | null 
+  | undefined 
+  | Date 
+  | bigint
+  | JsonObject 
+  | JsonArray;
+
+interface JsonObject {
+  [key: string]: JsonValue;
+}
+
+type JsonArray = JsonValue[];
+
+function replaceBigInt(data: JsonValue): JsonValue {
     if (data === null || data === undefined) {
-      return data;
+        return data;
     }
-    
+
     if (typeof data === 'bigint') {
-      return data.toString();
+        return data.toString();
     }
-    
+
+    // Explicitly handle Date objects - preserve the original timestamp
+    if (data instanceof Date) {
+        return data.toISOString();
+    }
+
     if (Array.isArray(data)) {
-      return data.map(replaceBigInt);
+        return data.map(replaceBigInt);
     }
-    
+
     if (typeof data === 'object') {
-      return Object.fromEntries(
-        Object.entries(data).map(([key, value]) => [key, replaceBigInt(value)])
-      );
+        return Object.fromEntries(
+            Object.entries(data).map(([key, value]) => [key, replaceBigInt(value)])
+        );
     }
-    
+
     return data;
-  }
+}
 
 export async function POST(request: Request) {
     try { // Outer try block starts here
@@ -122,7 +145,7 @@ export async function POST(request: Request) {
         console.error('Error during authentication or initial setup:', authError);
         // Handle potential errors from getSession or other issues before the inner try
         if (authError instanceof Error && authError.message.includes('Unauthorized')) {
-             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         return NextResponse.json({ error: 'An unexpected server error occurred' }, { status: 500 });
     }

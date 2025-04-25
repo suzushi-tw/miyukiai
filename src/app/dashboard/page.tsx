@@ -109,7 +109,19 @@ function SocialIconByName({ name, ...props }: { name: string } & React.SVGProps<
 
 function formatDate(dateString: string) {
     try {
-        const date = new Date(dateString || Date.now());
+        console.log("Formatting date:", dateString);
+        if (!dateString) {
+            console.warn("Empty date string received");
+            return formatDistanceToNow(new Date(), { addSuffix: true });
+        }
+
+        const date = new Date(dateString);
+
+        if (isNaN(date.getTime())) {
+            console.warn("Invalid date:", dateString);
+            return formatDistanceToNow(new Date(), { addSuffix: true });
+        }
+
         return formatDistanceToNow(date, { addSuffix: true });
     } catch (err) {
         console.error("Date parsing error:", err, dateString);
@@ -183,10 +195,10 @@ export default function UserProfilePage() {
     // Function to handle model deletion
     const handleDeleteModel = async (modelId: string) => {
         if (!modelId) return;
-        
+
         setIsDeleting(true);
         setDeleteModelId(modelId);
-        
+
         try {
             const response = await fetch(`/api/deletemodel?id=${modelId}`, {
                 method: 'DELETE',
@@ -201,10 +213,10 @@ export default function UserProfilePage() {
                 // Find the model to calculate new stats
                 const deletedModel = profileData.models.find(m => m.id === modelId);
                 const deletedDownloads = deletedModel?.downloads || 0;
-                
+
                 // Filter out deleted model images too
                 const updatedImages = profileData.images.filter(img => img.model.id !== modelId);
-                
+
                 setProfileData({
                     ...profileData,
                     models: profileData.models.filter(model => model.id !== modelId),
@@ -217,11 +229,11 @@ export default function UserProfilePage() {
                     }
                 });
             }
-            
+
             toast.success("Model deleted", {
                 description: "Your model has been successfully deleted."
             });
-            
+
         } catch (error) {
             console.error("Error deleting model:", error);
             toast.error("Failed to delete model", {
@@ -403,7 +415,10 @@ export default function UserProfilePage() {
                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                             <AlertDialogAction
                                                                 className="bg-red-500 hover:bg-red-600"
-                                                                onClick={() => handleDeleteModel(model.id)}
+                                                                onClick={(e) => {
+                                                                    e.preventDefault(); // Add this
+                                                                    handleDeleteModel(model.id);
+                                                                }}
                                                                 disabled={isDeleting && deleteModelId === model.id}
                                                             >
                                                                 {isDeleting && deleteModelId === model.id ? (
