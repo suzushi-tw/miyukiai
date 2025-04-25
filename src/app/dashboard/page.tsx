@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from "next/image";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation"; // Import useRouter
+import { useRouter } from "next/navigation";
 import {
     Tabs,
     TabsContent,
@@ -20,11 +20,24 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SimpleIconsX, SimpleIconsHuggingface, CibKoFi, LineMdBuyMeACoffeeTwotone } from "@/lib/icon";
-import { Download, Calendar, Loader2 } from "lucide-react";
+import { Download, Calendar, Loader2, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { authClient } from '@/lib/auth-client';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 // --- Types ---
 interface SocialLink {
@@ -53,7 +66,7 @@ interface Model {
     _count: {
         images: number;
     };
-    previewImage?: string; // Add this field
+    previewImage?: string;
 }
 
 interface ModelImage {
@@ -97,7 +110,6 @@ function SocialIconByName({ name, ...props }: { name: string } & React.SVGProps<
 function formatDate(dateString: string) {
     try {
         const date = new Date(dateString);
-        // Check if date is valid
         if (isNaN(date.getTime())) {
             return "Unknown date";
         }
@@ -107,7 +119,6 @@ function formatDate(dateString: string) {
         return "Unknown date";
     }
 }
-
 
 const platformNames: { [key: string]: string } = {
     "twitter": "Twitter",
@@ -120,17 +131,19 @@ export default function UserProfilePage() {
     const router = useRouter();
     const { data: session, isPending } = authClient.useSession();
     const [profileData, setProfileData] = useState<UserProfileData | null>(null);
-    const [loading, setLoading] = useState(isPending); // Initialize loading based on session pending state
+    const [loading, setLoading] = useState(isPending);
     const [error, setError] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteModelId, setDeleteModelId] = useState<string | null>(null);
 
     useEffect(() => {
         if (isPending) {
-            setLoading(true); // Keep loading while session is pending
+            setLoading(true);
             return;
         }
 
         if (!session?.user) {
-            router.push('/'); // Redirect if not logged in
+            router.push('/');
             return;
         }
 
@@ -138,7 +151,6 @@ export default function UserProfilePage() {
             setLoading(true);
             setError(null);
             try {
-                // Fetch logged-in user's data using POST to /api/users
                 const response = await fetch(`/api/users`, {
                     method: 'POST',
                 });
@@ -146,12 +158,10 @@ export default function UserProfilePage() {
                 if (!response.ok) {
                     if (response.status === 401) {
                         setError('Unauthorized. Please log in again.');
-                        // Optionally redirect: router.push('/login');
                         return;
                     }
                     if (response.status === 404) {
                         setError('User profile not found.');
-                        // Or use notFound();
                         return;
                     }
                     throw new Error(`Failed to fetch data: ${response.statusText} (${response.status})`);
@@ -173,7 +183,59 @@ export default function UserProfilePage() {
         fetchData();
     }, [session, isPending, router]);
 
-    // Show loading indicator while session is pending OR data is fetching
+    // Function to handle model deletion
+    const handleDeleteModel = async (modelId: string) => {
+        if (!modelId) return;
+        
+        setIsDeleting(true);
+        setDeleteModelId(modelId);
+        
+        try {
+            const response = await fetch(`/api/deletemodel?id=${modelId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to delete model: ${response.statusText}`);
+            }
+
+            // Update local state to remove the deleted model
+            if (profileData) {
+                // Find the model to calculate new stats
+                const deletedModel = profileData.models.find(m => m.id === modelId);
+                const deletedDownloads = deletedModel?.downloads || 0;
+                
+                // Filter out deleted model images too
+                const updatedImages = profileData.images.filter(img => img.model.id !== modelId);
+                
+                setProfileData({
+                    ...profileData,
+                    models: profileData.models.filter(model => model.id !== modelId),
+                    images: updatedImages,
+                    stats: {
+                        ...profileData.stats,
+                        totalDownloads: profileData.stats.totalDownloads - deletedDownloads,
+                        modelCount: profileData.stats.modelCount - 1,
+                        imageCount: updatedImages.length,
+                    }
+                });
+            }
+            
+            toast.success("Model deleted", {
+                description: "Your model has been successfully deleted."
+            });
+            
+        } catch (error) {
+            console.error("Error deleting model:", error);
+            toast.error("Failed to delete model", {
+                description: error instanceof Error ? error.message : "An unexpected error occurred"
+            });
+        } finally {
+            setIsDeleting(false);
+            setDeleteModelId(null);
+        }
+    };
+
     if (loading || isPending) {
         return (
             <div className="container mx-auto max-w-6xl py-8 flex justify-center items-center min-h-[60vh]">
@@ -182,7 +244,6 @@ export default function UserProfilePage() {
         );
     }
 
-    // --- Error State ---
     if (error) {
         return (
             <div className="container mx-auto max-w-6xl py-8 text-center text-red-600">
@@ -191,9 +252,7 @@ export default function UserProfilePage() {
         );
     }
 
-    // --- Data Loaded State ---
     if (!profileData) {
-        // Should be covered by loading/error states, but acts as a fallback
         return null;
     }
 
@@ -273,8 +332,8 @@ export default function UserProfilePage() {
                     {models.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {models.map((model) => (
-                                <Link href={`/models/${model.id}`} key={model.id}>
-                                    <Card className="h-full transition-shadow hover:shadow-md">
+                                <Card className="h-full transition-shadow hover:shadow-md" key={model.id}>
+                                    <Link href={`/models/${model.id}`}>
                                         <CardHeader className="pb-2">
                                             <div className="flex justify-between items-start">
                                                 <div>
@@ -313,17 +372,55 @@ export default function UserProfilePage() {
                                                 )}
                                             </div>
                                         </CardContent>
-                                        <CardFooter>
-                                            <div className="flex justify-between items-center w-full text-xs text-muted-foreground">
-                                                <div className="flex items-center gap-2">
-                                                    <Download className="h-3.5 w-3.5" />
-                                                    <span>{model.downloads} downloads</span>
-                                                </div>
-                                                <span>{formatDate(model.createdAt)}</span>
+                                    </Link>
+                                    <CardFooter>
+                                        <div className="flex justify-between items-center w-full text-xs text-muted-foreground">
+                                            <div className="flex items-center gap-2">
+                                                <Download className="h-3.5 w-3.5" />
+                                                <span>{model.downloads} downloads</span>
                                             </div>
-                                        </CardFooter>
-                                    </Card>
-                                </Link>
+                                            <div className="flex items-center gap-3">
+                                                <span>{formatDate(model.createdAt)}</span>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Delete Model</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Are you sure you want to delete &quot;{model.name}&quot;? This action cannot be undone.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                className="bg-red-500 hover:bg-red-600"
+                                                                onClick={() => handleDeleteModel(model.id)}
+                                                                disabled={isDeleting && deleteModelId === model.id}
+                                                            >
+                                                                {isDeleting && deleteModelId === model.id ? (
+                                                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                                ) : null}
+                                                                Delete
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </div>
+                                    </CardFooter>
+                                </Card>
                             ))}
                         </div>
                     ) : (
@@ -370,7 +467,6 @@ export default function UserProfilePage() {
                             <p className="text-muted-foreground mb-6">
                                 You have not uploaded any images yet.
                             </p>
-                            {/* Optionally add a link/button to upload images */}
                         </div>
                     )}
                 </TabsContent>
