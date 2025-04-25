@@ -109,10 +109,7 @@ function SocialIconByName({ name, ...props }: { name: string } & React.SVGProps<
 
 function formatDate(dateString: string) {
     try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) {
-            return "Unknown date";
-        }
+        const date = new Date(dateString || Date.now());
         return formatDistanceToNow(date, { addSuffix: true });
     } catch (err) {
         console.error("Date parsing error:", err, dateString);
@@ -350,9 +347,9 @@ export default function UserProfilePage() {
                                             </div>
                                         </CardHeader>
                                         <CardContent>
-                                            <p className="text-muted-foreground text-sm line-clamp-2 mb-2">
+                                            {/* <p className="text-muted-foreground text-sm line-clamp-2 mb-2">
                                                 {model.description || "No description provided."}
-                                            </p>
+                                            </p> */}
                                             {/* Model Preview Image Area */}
                                             <div className="relative aspect-video rounded-md overflow-hidden bg-accent/20 mb-2">
                                                 {model._count.images > 0 && model.previewImage ? (
