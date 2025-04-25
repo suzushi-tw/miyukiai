@@ -77,6 +77,10 @@ export default async function UserProfilePage({
         include: {
             _count: {
                 select: { images: true }
+            },
+            images: {
+                take: 1, // Get only the first image
+                orderBy: { createdAt: "desc" }
             }
         }
     });
@@ -171,7 +175,7 @@ export default async function UserProfilePage({
                     {models.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {models.map((model) => (
-                                <Link href={`/models/${model.id}`} key={model.id}>
+                                <Link href={`/model/${model.id}`} key={model.id}>
                                     <Card className="h-full transition-shadow hover:shadow-md">
                                         <CardHeader className="pb-2">
                                             <div className="flex justify-between items-start">
@@ -188,18 +192,17 @@ export default async function UserProfilePage({
                                                 </div>
                                             </div>
                                         </CardHeader>
-                                        <CardContent>
-                                            <p className="text-muted-foreground text-sm line-clamp-2 mb-2">
-                                                {model.description || "No description provided."}
-                                            </p>
-
-                                            {/* Display first image if available or placeholder */}
+                                        <CardContent>           
                                             <div className="relative aspect-video rounded-md overflow-hidden bg-accent/20 mb-2">
-                                                {model._count.images > 0 ? (
+                                                {model._count.images > 0 && model.images && model.images[0]?.url ? (
                                                     <div className="w-full h-full">
-                                                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                                                            <span className="text-xs">Loading preview...</span>
-                                                        </div>
+                                                        <Image
+                                                            src={model.images[0].url}
+                                                            alt={`${model.name} preview`}
+                                                            fill
+                                                            className="object-cover"
+                                                            sizes="(max-width: 768px) 100vw, 33vw"
+                                                        />
                                                     </div>
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">

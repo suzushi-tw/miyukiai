@@ -82,7 +82,7 @@ export function Navbar() {
   // Function to navigate to user dashboard
   const goToDashboard = () => {
     if (session?.user?.id) {
-      router.push(`/user/${session.user.id}`);
+      router.push(`/dashboard`);
     }
   };
 
