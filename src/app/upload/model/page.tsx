@@ -189,7 +189,7 @@ export default function UploadModelPage() {
             // If we already have a modelId, update existing record
             if (currentId) {
                 console.log(`Updating existing model record with ID: ${currentId}`);
-                const response = await fetch('/api/update-model', {
+                const response = await fetch('/api/updatemodel', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
