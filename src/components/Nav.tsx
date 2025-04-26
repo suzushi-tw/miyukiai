@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { Menu, X, User, LogOut, Settings, Plus, Upload, FileUp, FileCode, Shapes, Image as ImageIcon } from "lucide-react" // Added Shapes and ImageIcon
+import { Menu, X, User, LogOut, Settings, Plus, Upload, FileUp, FileCode, Shapes, Image as ImageIcon } from "lucide-react"
 import SignIn from "@/components/auth/sign-in"
 import SignUp from "@/components/auth/sign-up"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -20,8 +20,8 @@ import {
 
 // Define navigation items including Model and Image
 const navigation = [
-  { name: "Models", href: "/models", icon: Shapes }, // Added Models
-  { name: "Images", href: "/images", icon: ImageIcon }, // Added Images
+  { name: "Models", href: "/model", icon: Shapes },
+  { name: "Images", href: "/images", icon: ImageIcon },
   // { name: "Features", href: "/features" },
   // { name: "Pricing", href: "/pricing" },
   // { name: "About", href: "/about" },
@@ -101,20 +101,20 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4"> {/* Un-commented this section */}
-            <div className="flex items-center space-x-1"> {/* Reduced space for tighter look */}
+          {/* Center Navigation - This is the key change */}
+          <div className="hidden md:flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
+            <div className="flex items-center space-x-1">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    pathname.startsWith(item.href) // Use startsWith for active state on sub-paths
-                      ? "bg-muted text-foreground font-semibold" // Adjusted active style
+                    pathname.startsWith(item.href)
+                      ? "bg-muted text-foreground font-semibold"
                       : "text-foreground/70 hover:bg-muted hover:text-foreground"
                   }`}
                 >
-                  <item.icon className="mr-1.5 h-4 w-4" /> {/* Added icon */}
+                  <item.icon className="mr-1.5 h-4 w-4" />
                   {item.name}
                 </Link>
               ))}
@@ -173,7 +173,6 @@ export function Navbar() {
                       </div>
                     </div>
                     <DropdownMenuSeparator />
-                    {/* Updated Dashboard Link */}
                     <DropdownMenuItem onClick={goToDashboard} disabled={!session?.user?.id}>
                       <User className="mr-2 h-4 w-4" />
                       <span>Dashboard</span>
@@ -312,14 +311,14 @@ export function Navbar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center px-3 py-2 rounded-md text-base font-medium ${ // Added flex items-center
+                className={`flex items-center px-3 py-2 rounded-md text-base font-medium ${
                   pathname.startsWith(item.href)
-                    ? "bg-muted text-foreground font-semibold" // Adjusted active style
+                    ? "bg-muted text-foreground font-semibold"
                     : "text-foreground/70 hover:bg-muted hover:text-foreground"
                 }`}
                 onClick={() => setIsOpen(false)}
               >
-                <item.icon className="mr-2 h-5 w-5" /> {/* Added icon */}
+                <item.icon className="mr-2 h-5 w-5" />
                 {item.name}
               </Link>
             ))}

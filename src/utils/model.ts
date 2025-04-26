@@ -9,3 +9,12 @@ export const baseModelOptions = [
     { value: "Noob", label: "Noob" },
     { value: "other", label: "Other" },
 ];
+
+export const modelTypeOptions = [
+    { value: "checkpoint", label: "Checkpoint" },
+    { value: "lora", label: "LoRA" },
+    { value: "textualInversion", label: "Textual Inversion" },
+    { value: "controlnet", label: "ControlNet" },
+    { value: "upscaler", label: "Upscaler" },
+    { value: "other", label: "Other" },
+  ];

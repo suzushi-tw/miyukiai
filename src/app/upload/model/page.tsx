@@ -16,7 +16,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
+import ClearUploadsButton from "@/components/cleaupcache";
 import ProgressSteps from "@/components/step";
 import ModelUploadStep from "@/components/modelupload";
 import LicenseImagesStep from "@/components/licenseimage";
@@ -193,11 +193,11 @@ export default function UploadModelPage() {
 
             // Always create a model record, regardless of whether we have preview images
             const newModelId = await createOrUpdateModelRecord();
-            
+
             if (previewImages.length > 0) {
                 toast.info("Uploading preview images...");
             }
-            
+
             toast.success("Basic information saved!");
 
             // Proceed to next step
@@ -490,8 +490,13 @@ export default function UploadModelPage() {
                 {/* Show incomplete uploads if any exist */}
                 {incompleteUploads.length > 0 && (
                     <Alert className="bg-amber-50 border-amber-200">
-                        <RefreshCw className="h-4 w-4" />
-                        <AlertTitle>Incomplete uploads found</AlertTitle>
+                        <div className="flex justify-between items-center w-full">
+                            <div className="flex">
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                <AlertTitle>Incomplete uploads found</AlertTitle>
+                            </div>
+                            <ClearUploadsButton onCleared={() => setIncompleteUploads([])} />
+                        </div>
                         <AlertDescription>
                             <div className="mt-2 space-y-3">
                                 {incompleteUploads.map(upload => (
@@ -502,21 +507,31 @@ export default function UploadModelPage() {
                                                 {upload.progress}% uploaded • Started {new Date(upload.createdAt).toLocaleString()}
                                             </p>
                                         </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleResumeUpload(upload.id, upload.fileName)}
-                                            disabled={resumingUpload || isUploading}
-                                        >
-                                            {resumingUpload ? "Resuming..." : "Resume upload"}
-                                        </Button>
+                                        <div className="flex items-center space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleResumeUpload(upload.id, upload.fileName)}
+                                                disabled={resumingUpload || isUploading}
+                                            >
+                                                {resumingUpload ? "Resuming..." : "Resume"}
+                                            </Button>
+                                            <ClearUploadsButton
+                                                individual
+                                                uploadId={upload.id}
+                                                onCleared={() => {
+                                                    setIncompleteUploads(prev =>
+                                                        prev.filter(item => item.id !== upload.id)
+                                                    );
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </AlertDescription>
                     </Alert>
                 )}
-
                 {/* Progress indicator */}
                 <ProgressSteps currentStep={currentStep} />
 

@@ -22,22 +22,13 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { baseModelOptions } from "@/utils/model";
-
+import { modelTypeOptions } from "@/utils/model";
 
 interface BasicInfoStepProps {
   form: UseFormReturn<ModelFormSchema>;
 }
 
 const BasicInfoStep = ({ form }: BasicInfoStepProps) => {
-
-  const modelTypeOptions = [
-    { value: "checkpoint", label: "Checkpoint" },
-    { value: "lora", label: "LoRA" },
-    { value: "textualInversion", label: "Textual Inversion" },
-    { value: "controlnet", label: "ControlNet" },
-    { value: "upscaler", label: "Upscaler" },
-    { value: "other", label: "Other" },
-  ];
 
   return (
     <div className="space-y-6">

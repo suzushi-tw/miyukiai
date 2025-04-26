@@ -107,18 +107,34 @@ const getUploadState = (fileId: string): UploadState | null => {
     }
 };
 
-// Clear upload state when complete
 const clearUploadState = (uploadId: string): void => {
     try {
+        console.log(`Clearing upload state for ID: ${uploadId}`);
+
+        // Remove the specific upload state
         const stateKey = `upload-state-${uploadId}`;
         localStorage.removeItem(stateKey);
 
-        // Remove from active uploads
-        const activeUploads = JSON.parse(localStorage.getItem('active-uploads') || '[]');
-        const updatedUploads = activeUploads.filter((id: string) => id !== uploadId);
-        localStorage.setItem('active-uploads', JSON.stringify(updatedUploads));
+        // Also remove from active uploads list
+        try {
+            const activeUploadsJson = localStorage.getItem('active-uploads');
+            if (activeUploadsJson) {
+                const activeUploads = JSON.parse(activeUploadsJson);
+                if (Array.isArray(activeUploads)) {
+                    const updatedUploads = activeUploads.filter((id: string) => id !== uploadId);
+                    localStorage.setItem('active-uploads', JSON.stringify(updatedUploads));
+                    console.log(`Removed ${uploadId} from active uploads. Remaining: ${updatedUploads.length}`);
+                } else {
+                    // Reset if not an array
+                    localStorage.setItem('active-uploads', '[]');
+                }
+            }
+        } catch (parseError) {
+            console.error("Error parsing active uploads, resetting:", parseError);
+            localStorage.setItem('active-uploads', '[]');
+        }
     } catch (error) {
-        console.error("Error clearing upload state:", error);
+        console.error(`Error clearing upload state for ${uploadId}:`, error);
     }
 };
 
@@ -376,10 +392,9 @@ export async function uploadLargeFileToS3(
         const completeData = await completeResponse.json();
         console.log(`Successfully completed upload: ${key}`);
 
-        // Clean up the saved state
+        // Make sure we clean up the localStorage state
         clearUploadState(fileId);
 
-        // Return the URL of the uploaded file from the server response
         return completeData.fileUrl;
     } catch (error) {
         console.error("Multipart upload error:", error);
