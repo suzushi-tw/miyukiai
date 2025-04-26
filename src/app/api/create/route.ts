@@ -21,18 +21,18 @@ export async function POST(request: Request) {
     }
 
     // Parse request data
-    const { 
-      name, 
-      description, 
-      version, 
-      modelType, 
-      baseModel, 
-      license, 
+    const {
+      name,
+      description,
+      version,
+      modelType,
+      baseModel,
+      license,
       tags,
-      fileUrl, 
-      fileName, 
+      fileUrl,
+      fileName,
       fileSize,
-      images 
+      images
     } = await request.json();
 
     // Create the model in database
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       updatedAt: model.updatedAt
     };
 
-    return NextResponse.json({ success: true, model: serializedModel });
+    return NextResponse.json({ id: model.id, success: true, model: serializedModel });
   } catch (error) {
     console.error('Error saving model to database:', error);
     return NextResponse.json({ error: 'Failed to save model' }, { status: 500 });

@@ -63,9 +63,7 @@ const uploadImageDirectly = async (file: File): Promise<string> => {
     }
 };
 
-// New constants for localStorage keys
-const STORAGE_KEY_MODEL_ID = 'current_model_upload_id';
-const STORAGE_KEY_MODEL_NAME = 'current_model_upload_name';
+
 
 export default function UploadModelPage() {
     const router = useRouter();
@@ -74,15 +72,7 @@ export default function UploadModelPage() {
     const [modelFile, setModelFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
-
-    // Modified to use localStorage for persistence
-    const [modelId, setModelId] = useState<string | null>(() => {
-        // Initialize from localStorage if available
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem(STORAGE_KEY_MODEL_ID);
-        }
-        return null;
-    });
+    const [id, setid] = useState("");
 
     const [incompleteUploads, setIncompleteUploads] = useState<{
         id: string;
@@ -108,26 +98,6 @@ export default function UploadModelPage() {
         checkIncompleteUploads();
     }, []);
 
-    // Enhanced logging and persistence of modelId
-    useEffect(() => {
-        if (modelId) {
-            console.log(`Setting model ID in localStorage: ${modelId}`);
-            localStorage.setItem(STORAGE_KEY_MODEL_ID, modelId);
-
-            // Also store model name for debugging purposes
-            const modelName = form.getValues().name;
-            if (modelName) {
-                localStorage.setItem(STORAGE_KEY_MODEL_NAME, modelName);
-            }
-        }
-    }, [modelId]);
-
-    // Debug logging
-    useEffect(() => {
-        // Log state and localStorage for debugging
-        const storedId = localStorage.getItem(STORAGE_KEY_MODEL_ID);
-        console.log(`State updated - modelId in state: ${modelId}, in localStorage: ${storedId}, modelFile: ${modelFile?.name || 'none'}, step: ${currentStep}`);
-    }, [modelId, modelFile, currentStep]);
 
     // Initialize form
     const form = useForm<ModelFormSchema>({
@@ -143,37 +113,16 @@ export default function UploadModelPage() {
         },
     });
 
-    // Helper function to get the current model ID (from state or localStorage)
-    const getCurrentModelId = (): string | null => {
-        return modelId || (typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_MODEL_ID) : null);
-    };
-
-    // Helper function to store model ID consistently
-    const persistModelId = (id: string) => {
-        console.log(`Persisting model ID: ${id}`);
-        setModelId(id);
-        if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_KEY_MODEL_ID, id);
-        }
-    };
-
-    // Clear model ID on successful completion
-    const clearPersistedModelId = () => {
-        console.log('Clearing persisted model ID after successful upload');
-        setModelId(null);
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem(STORAGE_KEY_MODEL_ID);
-            localStorage.removeItem(STORAGE_KEY_MODEL_NAME);
-        }
-    };
-
-    // ------- Form Submission Logic -------
-
-    const createOrUpdateModelRecord = async (fileInfo?: { url: string, name: string, size: number }) => {
+    const saveBasicInfo = async () => {
         try {
+            setIsUploading(true);
+            toast.info("Saving basic information...");
+
+            if (previewImages.length > 0) {
+                toast.info("Uploading preview images...");
+            }
+
             const formData = form.getValues();
-            const currentId = getCurrentModelId();
-            console.log(`createOrUpdateModelRecord called with currentId: ${currentId}, fileInfo: ${fileInfo ? 'provided' : 'not provided'}`);
 
             // Upload preview images if we have any
             const uploadedImageUrls = await Promise.all(
@@ -186,81 +135,41 @@ export default function UploadModelPage() {
                 })
             );
 
-            // If we already have a modelId, update existing record
-            if (currentId) {
-                console.log(`Updating existing model record with ID: ${currentId}`);
-                const response = await fetch('/api/updatemodel', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        id: currentId, // Send ID in the request body
-                        ...formData,
-                        fileUrl: fileInfo?.url || "",
-                        fileName: fileInfo?.name || "",
-                        fileSize: fileInfo?.size || 0,
-                        images: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
-                        status: fileInfo ? "published" : "draft"
-                    }),
-                });
+            console.log('Creating new model record');
+            const response = await fetch('/api/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ...formData,
+                    fileUrl: "",
+                    fileName: "",
+                    fileSize: 0,
+                    images: uploadedImageUrls || [],
+                }),
+            });
 
-                if (!response.ok) {
-                    throw new Error('Failed to update model in database');
-                }
-
-                const data = await response.json();
-                console.log('Model updated successfully:', data);
-                return currentId;
-            } else {
-                // Create initial model record if no modelId exists
-                console.log('Creating new model record');
-                const response = await fetch('/api/create', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        ...formData,
-                        fileUrl: fileInfo?.url || "",
-                        fileName: fileInfo?.name || "",
-                        fileSize: fileInfo?.size || 0,
-                        images: uploadedImageUrls,
-                        status: fileInfo ? "published" : "draft"
-                    }),
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to save model to database');
-                }
-
-                const data = await response.json();
-                persistModelId(data.id);
-                console.log(`New model created with ID: ${data.id}`);
-                return data.id;
+            if (!response.ok) {
+                // For debugging - get the actual error message from the server
+                const errorText = await response.text();
+                console.error(`Server returned error: ${errorText}`);
+                throw new Error('Failed to save model to database');
             }
-        } catch (error) {
-            console.error("Error creating/updating model record:", error);
-            throw error;
-        }
-    };
-    // Save basic info and images (Step 1 -> 2)
-    const saveBasicInfo = async () => {
-        try {
-            setIsUploading(true);
-            toast.info("Saving basic information...");
 
-            // Always create a model record, regardless of whether we have preview images
-            const newModelId = await createOrUpdateModelRecord();
-            console.log(`saveBasicInfo - received model ID: ${newModelId}`);
+            const data = await response.json();
 
-            if (previewImages.length > 0) {
-                toast.info("Uploading preview images...");
+            if (data && data.id) {
+                setid(data.id);
+                console.log(`New model created with ID: ${data.id}`);
+            } else {
+                console.error("No ID returned from create API", data);
+                throw new Error("Server did not return a model ID");
             }
 
             toast.success("Basic information saved!");
 
-            // Proceed to next step
+
             setCurrentStep(3);
         } catch (error) {
             console.error("Error saving information:", error);
@@ -270,7 +179,7 @@ export default function UploadModelPage() {
         }
     };
 
-    // Upload the model file and update the database (Step 3)
+
     const uploadModelFile = async () => {
         if (!modelFile) {
             toast.error("Please select a model file first");
@@ -286,26 +195,22 @@ export default function UploadModelPage() {
                 setUploadProgress(progress);
             });
 
-            // Double check we have the model ID before updating
-            const currentId = getCurrentModelId();
-            console.log(`uploadModelFile - using model ID: ${currentId}`);
 
-            if (!currentId) {
-                console.warn("No model ID found when updating with file URL. Creating new record.");
-            }
-
-            // Then update or create the model record with complete data
-            await createOrUpdateModelRecord({
-                url: uploadedModelUrl,
-                name: modelFile.name,
-                size: modelFile.size
+            const response = await fetch('/api/updatemodel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: id,
+                    fileUrl: uploadedModelUrl,
+                    fileName: modelFile.name,
+                    fileSize: modelFile.size,
+                }),
             });
 
             toast.success("Model uploaded and published successfully!");
-
-            // Clear stored ID since upload is complete
-            clearPersistedModelId();
-
+            setid("");
             router.push("/dashboard");
         } catch (error) {
             console.error("Upload error:", error);
@@ -315,7 +220,7 @@ export default function UploadModelPage() {
         }
     };
 
-    // Handle form submission based on current step
+
     const onSubmit = async (formData: ModelFormSchema) => {
         if (currentStep === 1) {
             // Basic validation before proceeding
@@ -413,80 +318,6 @@ export default function UploadModelPage() {
                             form.setValue("baseModel", "sd15");
                         }
 
-                        // Create model record if needed
-                        const resumeProcess = async () => {
-                            setIsUploading(true);
-                            try {
-                                let modelRecordId = getCurrentModelId();
-
-                                // Create model record if we don't have one
-                                if (!modelRecordId) {
-                                    const formData = form.getValues();
-                                    const response = await fetch('/api/create', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            ...formData,
-                                            fileUrl: "",
-                                            fileName: files[0].name,
-                                            fileSize: files[0].size,
-                                            images: []
-                                        }),
-                                    });
-
-                                    if (!response.ok) {
-                                        throw new Error("Failed to create model entry");
-                                    }
-
-                                    const data = await response.json();
-                                    modelRecordId = data.id;
-                                    persistModelId(modelRecordId || '');
-                                }
-
-                                // Resume the upload
-                                setCurrentStep(3);
-                                const fileUrl = await uploadLargeFileToS3(
-                                    files[0],
-                                    setUploadProgress,
-                                    uploadId
-                                );
-
-                                const updateResponse = await fetch('/api/updatemodel', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        id: modelRecordId,
-                                        fileUrl: fileUrl,
-                                        fileName: files[0].name,
-                                        fileSize: files[0].size,
-                                        status: "published"
-                                    }),
-                                });
-
-                                if (!updateResponse.ok) {
-                                    throw new Error("Failed to update model");
-                                }
-
-                                // Clear persisted ID on successful upload
-                                clearPersistedModelId();
-
-                                toast.success("Upload successfully completed!");
-                                router.push("/dashboard");
-                            } catch (error) {
-                                console.error("Resume error:", error);
-                                toast.error(`Resume failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                            } finally {
-                                setIsUploading(false);
-                                setResumingUpload(false);
-
-                                // Restore original handler
-                                if (modelInputRef.current && originalHandler) {
-                                    modelInputRef.current.onchange = originalHandler as any;
-                                }
-                            }
-                        };
-
-                        resumeProcess();
                     } else {
                         toast.error("Selected file doesn't match the incomplete upload");
                         setResumingUpload(false);
