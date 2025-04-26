@@ -116,8 +116,8 @@ export default function UploadModelPage() {
 
     // ------- Form Submission Logic -------
 
-    // Core function to create model in database
-    const createModelRecord = async (fileInfo?: { url: string, name: string, size: number }) => {
+    // Core function to create or update model in database
+    const createOrUpdateModelRecord = async (fileInfo?: { url: string, name: string, size: number }) => {
         try {
             const formData = form.getValues();
 
@@ -132,31 +132,55 @@ export default function UploadModelPage() {
                 })
             );
 
-            // Create initial model record
-            const response = await fetch('/api/create', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ...formData,
-                    fileUrl: fileInfo?.url || "",
-                    fileName: fileInfo?.name || "",
-                    fileSize: fileInfo?.size || 0,
-                    images: uploadedImageUrls,
-                    status: fileInfo ? "published" : "draft"
-                }),
-            });
+            // If we already have a modelId, update existing record
+            if (modelId) {
+                const response = await fetch(`/api/update-model/${modelId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ...formData,
+                        fileUrl: fileInfo?.url || "",
+                        fileName: fileInfo?.name || "",
+                        fileSize: fileInfo?.size || 0,
+                        images: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
+                        status: fileInfo ? "published" : "draft"
+                    }),
+                });
 
-            if (!response.ok) {
-                throw new Error('Failed to save model to database');
+                if (!response.ok) {
+                    throw new Error('Failed to update model in database');
+                }
+
+                return modelId;
+            } else {
+                // Create initial model record if no modelId exists
+                const response = await fetch('/api/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ...formData,
+                        fileUrl: fileInfo?.url || "",
+                        fileName: fileInfo?.name || "",
+                        fileSize: fileInfo?.size || 0,
+                        images: uploadedImageUrls,
+                        status: fileInfo ? "published" : "draft"
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save model to database');
+                }
+
+                const data = await response.json();
+                setModelId(data.id);
+                return data.id;
             }
-
-            const data = await response.json();
-            setModelId(data.id);
-            return data.id;
         } catch (error) {
-            console.error("Error creating model record:", error);
+            console.error("Error creating/updating model record:", error);
             throw error;
         }
     };
@@ -167,12 +191,14 @@ export default function UploadModelPage() {
             setIsUploading(true);
             toast.info("Saving basic information...");
 
-            // Only create model record if we have images to save
+            // Always create a model record, regardless of whether we have preview images
+            const newModelId = await createOrUpdateModelRecord();
+            
             if (previewImages.length > 0) {
                 toast.info("Uploading preview images...");
-                const newModelId = await createModelRecord();
-                toast.success("Basic information and images saved!");
             }
+            
+            toast.success("Basic information saved!");
 
             // Proceed to next step
             setCurrentStep(3);
@@ -195,50 +221,17 @@ export default function UploadModelPage() {
             setIsUploading(true);
             toast.info(`Starting upload of ${modelFile.name}...`);
 
-            // If we don't have a model ID yet, create one first with complete data
-            if (!modelId) {
-                toast.info("Creating model record...");
-
-                // First upload the model file
-                const uploadedModelUrl = await uploadLargeFileToS3(modelFile, (progress) => {
-                    setUploadProgress(progress);
-                });
-
-                // Then create the model record with everything
-                await createModelRecord({
-                    url: uploadedModelUrl,
-                    name: modelFile.name,
-                    size: modelFile.size
-                });
-
-                toast.success("Model uploaded and published successfully!");
-                router.push("/dashboard");
-                return;
-            }
-
-            // We already have a model ID, so just upload the file and update the record
-            toast.info(`Uploading ${modelFile.name}...`);
+            // Upload the model file first
             const uploadedModelUrl = await uploadLargeFileToS3(modelFile, (progress) => {
                 setUploadProgress(progress);
             });
 
-            // Update the existing record with the model file information
-            const response = await fetch(`/api/update-model/${modelId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    fileUrl: uploadedModelUrl,
-                    fileName: modelFile.name,
-                    fileSize: modelFile.size,
-                    status: "published" // Mark as published
-                }),
+            // Then update or create the model record with complete data
+            await createOrUpdateModelRecord({
+                url: uploadedModelUrl,
+                name: modelFile.name,
+                size: modelFile.size
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to update model with file data');
-            }
 
             toast.success("Model uploaded and published successfully!");
             router.push("/dashboard");

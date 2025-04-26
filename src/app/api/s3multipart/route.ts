@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const { fileName, contentType } = await request.json();
     
     // Ensure the model files go in a dedicated folder with proper naming
-    const modelKey = `models/${sessionData.user.id}/${Date.now()}-${fileName}`;
+    const modelKey = `models/${sessionData.user.id}/${fileName}`;
     
     const command = new CreateMultipartUploadCommand({
       Bucket: BUCKET_NAME,

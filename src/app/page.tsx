@@ -56,7 +56,7 @@ export default function HomePage() {
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
-      <h1 className="text-4xl font-bold mb-8">AI Models Explorer</h1>
+      <h1 className="text-4xl font-bold mb-8">New Models</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {status === 'pending' ? (
