@@ -6,5 +6,6 @@ export const baseModelOptions = [
     { value: "sd35l", label: "Stable Diffusion 3.5 Large" },
     { value: "IL", label: "Illustrious" },
     { value: "Pony", label: "Pony" },
+    { value: "Noob", label: "Noob" },
     { value: "other", label: "Other" },
 ];
