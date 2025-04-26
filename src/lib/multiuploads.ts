@@ -449,7 +449,7 @@ export async function getIncompleteUploads(): Promise<{
     }
 
     // Sort by most recent first
-    return uploads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return uploads.filter(upload => upload.progress < 100);
 }
 
 // Helper to format file size

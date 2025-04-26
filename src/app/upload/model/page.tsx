@@ -63,6 +63,10 @@ const uploadImageDirectly = async (file: File): Promise<string> => {
     }
 };
 
+// New constants for localStorage keys
+const STORAGE_KEY_MODEL_ID = 'current_model_upload_id';
+const STORAGE_KEY_MODEL_NAME = 'current_model_upload_name';
+
 export default function UploadModelPage() {
     const router = useRouter();
     const [currentStep, setCurrentStep] = useState(1);
@@ -70,7 +74,16 @@ export default function UploadModelPage() {
     const [modelFile, setModelFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
-    const [modelId, setModelId] = useState<string | null>(null);
+    
+    // Modified to use localStorage for persistence
+    const [modelId, setModelId] = useState<string | null>(() => {
+        // Initialize from localStorage if available
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem(STORAGE_KEY_MODEL_ID);
+        }
+        return null;
+    });
+    
     const [incompleteUploads, setIncompleteUploads] = useState<{
         id: string;
         fileName: string;
@@ -95,9 +108,25 @@ export default function UploadModelPage() {
         checkIncompleteUploads();
     }, []);
 
-    // Log state changes for debugging
+    // Enhanced logging and persistence of modelId
     useEffect(() => {
-        console.log(`State updated - modelId: ${modelId}, modelFile: ${modelFile?.name || 'none'}, step: ${currentStep}`);
+        if (modelId) {
+            console.log(`Setting model ID in localStorage: ${modelId}`);
+            localStorage.setItem(STORAGE_KEY_MODEL_ID, modelId);
+            
+            // Also store model name for debugging purposes
+            const modelName = form.getValues().name;
+            if (modelName) {
+                localStorage.setItem(STORAGE_KEY_MODEL_NAME, modelName);
+            }
+        }
+    }, [modelId]);
+
+    // Debug logging
+    useEffect(() => {
+        // Log state and localStorage for debugging
+        const storedId = localStorage.getItem(STORAGE_KEY_MODEL_ID);
+        console.log(`State updated - modelId in state: ${modelId}, in localStorage: ${storedId}, modelFile: ${modelFile?.name || 'none'}, step: ${currentStep}`);
     }, [modelId, modelFile, currentStep]);
 
     // Initialize form
@@ -114,12 +143,38 @@ export default function UploadModelPage() {
         },
     });
 
+    // Helper function to get the current model ID (from state or localStorage)
+    const getCurrentModelId = (): string | null => {
+        return modelId || (typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_MODEL_ID) : null);
+    };
+
+    // Helper function to store model ID consistently
+    const persistModelId = (id: string) => {
+        console.log(`Persisting model ID: ${id}`);
+        setModelId(id);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEY_MODEL_ID, id);
+        }
+    };
+
+    // Clear model ID on successful completion
+    const clearPersistedModelId = () => {
+        console.log('Clearing persisted model ID after successful upload');
+        setModelId(null);
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem(STORAGE_KEY_MODEL_ID);
+            localStorage.removeItem(STORAGE_KEY_MODEL_NAME);
+        }
+    };
+
     // ------- Form Submission Logic -------
 
     // Core function to create or update model in database
     const createOrUpdateModelRecord = async (fileInfo?: { url: string, name: string, size: number }) => {
         try {
             const formData = form.getValues();
+            const currentId = getCurrentModelId();
+            console.log(`createOrUpdateModelRecord called with currentId: ${currentId}, fileInfo: ${fileInfo ? 'provided' : 'not provided'}`);
 
             // Upload preview images if we have any
             const uploadedImageUrls = await Promise.all(
@@ -133,8 +188,9 @@ export default function UploadModelPage() {
             );
 
             // If we already have a modelId, update existing record
-            if (modelId) {
-                const response = await fetch(`/api/update-model/${modelId}`, {
+            if (currentId) {
+                console.log(`Updating existing model record with ID: ${currentId}`);
+                const response = await fetch(`/api/update-model/${currentId}`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
@@ -153,9 +209,10 @@ export default function UploadModelPage() {
                     throw new Error('Failed to update model in database');
                 }
 
-                return modelId;
+                return currentId;
             } else {
                 // Create initial model record if no modelId exists
+                console.log('Creating new model record');
                 const response = await fetch('/api/create', {
                     method: 'POST',
                     headers: {
@@ -176,7 +233,8 @@ export default function UploadModelPage() {
                 }
 
                 const data = await response.json();
-                setModelId(data.id);
+                persistModelId(data.id);
+                console.log(`New model created with ID: ${data.id}`);
                 return data.id;
             }
         } catch (error) {
@@ -193,6 +251,7 @@ export default function UploadModelPage() {
 
             // Always create a model record, regardless of whether we have preview images
             const newModelId = await createOrUpdateModelRecord();
+            console.log(`saveBasicInfo - received model ID: ${newModelId}`);
 
             if (previewImages.length > 0) {
                 toast.info("Uploading preview images...");
@@ -226,6 +285,14 @@ export default function UploadModelPage() {
                 setUploadProgress(progress);
             });
 
+            // Double check we have the model ID before updating
+            const currentId = getCurrentModelId();
+            console.log(`uploadModelFile - using model ID: ${currentId}`);
+            
+            if (!currentId) {
+                console.warn("No model ID found when updating with file URL. Creating new record.");
+            }
+
             // Then update or create the model record with complete data
             await createOrUpdateModelRecord({
                 url: uploadedModelUrl,
@@ -234,6 +301,10 @@ export default function UploadModelPage() {
             });
 
             toast.success("Model uploaded and published successfully!");
+            
+            // Clear stored ID since upload is complete
+            clearPersistedModelId();
+            
             router.push("/dashboard");
         } catch (error) {
             console.error("Upload error:", error);
@@ -345,7 +416,7 @@ export default function UploadModelPage() {
                         const resumeProcess = async () => {
                             setIsUploading(true);
                             try {
-                                let modelRecordId = modelId;
+                                let modelRecordId = getCurrentModelId();
 
                                 // Create model record if we don't have one
                                 if (!modelRecordId) {
@@ -368,7 +439,7 @@ export default function UploadModelPage() {
 
                                     const data = await response.json();
                                     modelRecordId = data.id;
-                                    setModelId(modelRecordId);
+                                    persistModelId(modelRecordId || '');
                                 }
 
                                 // Resume the upload
@@ -395,6 +466,9 @@ export default function UploadModelPage() {
                                     throw new Error("Failed to update model");
                                 }
 
+                                // Clear persisted ID on successful upload
+                                clearPersistedModelId();
+                                
                                 toast.success("Upload successfully completed!");
                                 router.push("/dashboard");
                             } catch (error) {
@@ -432,6 +506,17 @@ export default function UploadModelPage() {
             };
         }
     };
+
+    // Clear model ID when component unmounts
+    useEffect(() => {
+        return () => {
+            // Only clear if upload was completed or explicitly canceled
+            // This prevents data loss during page refreshes
+            if (!isUploading) {
+                console.log("Component unmounting - not clearing modelId because it might be needed for resume");
+            }
+        };
+    }, [isUploading]);
 
     // ------- UI Rendering Logic -------
 
@@ -499,35 +584,37 @@ export default function UploadModelPage() {
                         </div>
                         <AlertDescription>
                             <div className="mt-2 space-y-3">
-                                {incompleteUploads.map(upload => (
-                                    <div key={upload.id} className="flex items-center justify-between bg-white p-2 rounded-md shadow-sm">
-                                        <div>
-                                            <p className="font-medium">{upload.fileName}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {upload.progress}% uploaded • Started {new Date(upload.createdAt).toLocaleString()}
-                                            </p>
+                                {incompleteUploads
+                                    .filter(upload => upload.progress > 0 && upload.progress < 100)
+                                    .map(upload => (
+                                        <div key={upload.id} className="flex items-center justify-between bg-white p-2 rounded-md shadow-sm">
+                                            <div>
+                                                <p className="font-medium">{upload.fileName}</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {upload.progress}% uploaded • Started {new Date(upload.createdAt).toLocaleString()}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleResumeUpload(upload.id, upload.fileName)}
+                                                    disabled={resumingUpload || isUploading}
+                                                >
+                                                    {resumingUpload ? "Resuming..." : "Resume"}
+                                                </Button>
+                                                <ClearUploadsButton
+                                                    individual
+                                                    uploadId={upload.id}
+                                                    onCleared={() => {
+                                                        setIncompleteUploads(prev =>
+                                                            prev.filter(item => item.id !== upload.id)
+                                                        );
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="flex items-center space-x-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleResumeUpload(upload.id, upload.fileName)}
-                                                disabled={resumingUpload || isUploading}
-                                            >
-                                                {resumingUpload ? "Resuming..." : "Resume"}
-                                            </Button>
-                                            <ClearUploadsButton
-                                                individual
-                                                uploadId={upload.id}
-                                                onCleared={() => {
-                                                    setIncompleteUploads(prev =>
-                                                        prev.filter(item => item.id !== upload.id)
-                                                    );
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
                             </div>
                         </AlertDescription>
                     </Alert>
