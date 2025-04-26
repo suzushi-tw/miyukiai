@@ -20,8 +20,6 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.R2_BUCKET_NAME || '';
-// Make sure R2_PUBLIC_DOMAIN is correctly set in your environment variables
-const PUBLIC_DOMAIN = process.env.R2_PUBLIC_DOMAIN || '';
 
 // Initiate a multipart upload
 export async function POST(request: Request) {
@@ -55,10 +53,8 @@ export async function POST(request: Request) {
     
     const { UploadId } = await s3Client.send(command);
     
-    // Ensure we have a properly formatted fileUrl
-    const fileUrl = PUBLIC_DOMAIN ? 
-      `${PUBLIC_DOMAIN}/${modelKey}` : 
-      `https://${BUCKET_NAME}.r2.dev/${modelKey}`;
+    // Generate fileUrl using R2_PUBLIC_URL
+    const fileUrl = `${process.env.R2_PUBLIC_URL}/${modelKey}`;
     
     return NextResponse.json({ 
       uploadId: UploadId, 
@@ -150,10 +146,8 @@ export async function PUT(request: Request) {
     
     const result = await s3Client.send(command);
     
-    // Ensure we have a properly formatted fileUrl
-    const fileUrl = PUBLIC_DOMAIN ? 
-      `${PUBLIC_DOMAIN}/${key}` : 
-      `https://${BUCKET_NAME}.r2.dev/${key}`;
+    // Generate fileUrl using R2_PUBLIC_URL
+    const fileUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
     
     return NextResponse.json({ 
       success: true, 
