@@ -74,7 +74,7 @@ export default function UploadModelPage() {
     const [modelFile, setModelFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
-    
+
     // Modified to use localStorage for persistence
     const [modelId, setModelId] = useState<string | null>(() => {
         // Initialize from localStorage if available
@@ -83,7 +83,7 @@ export default function UploadModelPage() {
         }
         return null;
     });
-    
+
     const [incompleteUploads, setIncompleteUploads] = useState<{
         id: string;
         fileName: string;
@@ -113,7 +113,7 @@ export default function UploadModelPage() {
         if (modelId) {
             console.log(`Setting model ID in localStorage: ${modelId}`);
             localStorage.setItem(STORAGE_KEY_MODEL_ID, modelId);
-            
+
             // Also store model name for debugging purposes
             const modelName = form.getValues().name;
             if (modelName) {
@@ -169,7 +169,6 @@ export default function UploadModelPage() {
 
     // ------- Form Submission Logic -------
 
-    // Core function to create or update model in database
     const createOrUpdateModelRecord = async (fileInfo?: { url: string, name: string, size: number }) => {
         try {
             const formData = form.getValues();
@@ -190,12 +189,13 @@ export default function UploadModelPage() {
             // If we already have a modelId, update existing record
             if (currentId) {
                 console.log(`Updating existing model record with ID: ${currentId}`);
-                const response = await fetch(`/api/update-model/${currentId}`, {
-                    method: 'PATCH',
+                const response = await fetch('/api/update-model', {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
+                        id: currentId, // Send ID in the request body
                         ...formData,
                         fileUrl: fileInfo?.url || "",
                         fileName: fileInfo?.name || "",
@@ -209,6 +209,8 @@ export default function UploadModelPage() {
                     throw new Error('Failed to update model in database');
                 }
 
+                const data = await response.json();
+                console.log('Model updated successfully:', data);
                 return currentId;
             } else {
                 // Create initial model record if no modelId exists
@@ -242,7 +244,6 @@ export default function UploadModelPage() {
             throw error;
         }
     };
-
     // Save basic info and images (Step 1 -> 2)
     const saveBasicInfo = async () => {
         try {
@@ -288,7 +289,7 @@ export default function UploadModelPage() {
             // Double check we have the model ID before updating
             const currentId = getCurrentModelId();
             console.log(`uploadModelFile - using model ID: ${currentId}`);
-            
+
             if (!currentId) {
                 console.warn("No model ID found when updating with file URL. Creating new record.");
             }
@@ -301,10 +302,10 @@ export default function UploadModelPage() {
             });
 
             toast.success("Model uploaded and published successfully!");
-            
+
             // Clear stored ID since upload is complete
             clearPersistedModelId();
-            
+
             router.push("/dashboard");
         } catch (error) {
             console.error("Upload error:", error);
@@ -450,11 +451,11 @@ export default function UploadModelPage() {
                                     uploadId
                                 );
 
-                                // Update model with file info
-                                const updateResponse = await fetch(`/api/update-model/${modelRecordId}`, {
-                                    method: 'PATCH',
+                                const updateResponse = await fetch('/api/updatemodel', {
+                                    method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
+                                        id: modelRecordId,
                                         fileUrl: fileUrl,
                                         fileName: files[0].name,
                                         fileSize: files[0].size,
@@ -468,7 +469,7 @@ export default function UploadModelPage() {
 
                                 // Clear persisted ID on successful upload
                                 clearPersistedModelId();
-                                
+
                                 toast.success("Upload successfully completed!");
                                 router.push("/dashboard");
                             } catch (error) {
