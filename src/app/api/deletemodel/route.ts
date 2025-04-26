@@ -13,6 +13,43 @@ const s3Client = new S3Client({
     },
 });
 
+// Helper function to extract file key from URL
+function extractFileKeyFromUrl(fileUrl: string | null): string | null {
+    if (!fileUrl || fileUrl.trim() === '') {
+        console.log("Empty file URL encountered");
+        return null;
+    }
+    
+    try {
+        // Parse URL and get pathname
+        const url = new URL(fileUrl);
+        // Remove the leading slash from pathname
+        return url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
+    } catch (error) {
+        console.log(`Failed to parse URL: ${fileUrl}`, error);
+        
+        // Fallback: Try to extract path manually for r2.miyukiai.com domain
+        if (fileUrl.includes('r2.miyukiai.com/')) {
+            const parts = fileUrl.split('r2.miyukiai.com/');
+            if (parts.length > 1) {
+                return parts[1]; // Return everything after the domain
+            }
+        }
+        
+        // Second fallback: if URL starts with models/ or previews/ or images/
+        const prefixes = ['models/', 'previews/', 'images/'];
+        for (const prefix of prefixes) {
+            if (fileUrl.includes(prefix)) {
+                const index = fileUrl.indexOf(prefix);
+                return fileUrl.substring(index);
+            }
+        }
+        
+        console.log(`Could not extract key from URL: ${fileUrl}`);
+        return null;
+    }
+}
+
 export async function DELETE(request: Request) {
     try {
         // Get modelId from the URL query parameter
@@ -25,9 +62,7 @@ export async function DELETE(request: Request) {
 
         // Verify user authentication
         const sessionData = await auth.api.getSession({
-            query: {
-                disableCookieCache: true,
-            },
+            query: { disableCookieCache: true },
             headers: request.headers,
         });
 
@@ -41,10 +76,10 @@ export async function DELETE(request: Request) {
         const model = await db.model.findUnique({
             where: {
                 id: modelId,
-                userId: userId, // Ensure the model belongs to the authenticated user
+                userId: userId,
             },
             include: {
-                images: true, // Include images for deletion
+                images: true,
             },
         });
 
@@ -52,36 +87,58 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Model not found or not owned by user' }, { status: 404 });
         }
 
-        try {
-            // Extract the file key from the URL
-            const fileUrl = new URL(model.fileUrl);
-            const fileKey = fileUrl.pathname.substring(1); // Remove leading slash
-            
-            // Delete the model file from R2
-            await s3Client.send(
-                new DeleteObjectCommand({
-                    Bucket: process.env.R2_BUCKET_NAME!,
-                    Key: fileKey,
-                })
-            );
+        // Track deletion results
+        const deletedFiles = {
+            model: false,
+            images: 0,
+            errors: [] as string[]
+        };
 
-            // Delete all associated images from R2
-            for (const image of model.images) {
-                try {
-                    const imageUrl = new URL(image.url);
-                    const imageKey = imageUrl.pathname.substring(1);
+        try {
+            // Delete model file if it exists
+            if (model.fileUrl) {
+                const fileKey = extractFileKeyFromUrl(model.fileUrl);
+                
+                if (fileKey) {
+                    console.log(`Deleting model file: ${fileKey}`);
                     await s3Client.send(
                         new DeleteObjectCommand({
                             Bucket: process.env.R2_BUCKET_NAME!,
-                            Key: imageKey,
+                            Key: fileKey,
                         })
                     );
-                } catch (imageError) {
-                    console.error(`Failed to delete image file ${image.url}:`, imageError);
+                    deletedFiles.model = true;
+                } else {
+                    deletedFiles.errors.push(`Invalid model file URL: ${model.fileUrl}`);
+                }
+            }
+
+            // Delete associated image files
+            for (const image of model.images) {
+                if (!image.url) continue;
+                
+                const imageKey = extractFileKeyFromUrl(image.url);
+                if (imageKey) {
+                    try {
+                        console.log(`Deleting image file: ${imageKey}`);
+                        await s3Client.send(
+                            new DeleteObjectCommand({
+                                Bucket: process.env.R2_BUCKET_NAME!,
+                                Key: imageKey,
+                            })
+                        );
+                        deletedFiles.images++;
+                    } catch (imageError) {
+                        console.error(`Failed to delete image file: ${imageKey}`, imageError);
+                        deletedFiles.errors.push(`Failed to delete image: ${image.id}`);
+                    }
+                } else {
+                    deletedFiles.errors.push(`Invalid image file URL: ${image.url}`);
                 }
             }
         } catch (storageError) {
             console.error('Error deleting files from storage:', storageError);
+            deletedFiles.errors.push(storageError instanceof Error ? storageError.message : 'Unknown storage error');
             // Continue with database deletion even if file deletion fails
         }
 
@@ -90,7 +147,11 @@ export async function DELETE(request: Request) {
             where: { id: modelId },
         });
 
-        return NextResponse.json({ success: true, message: 'Model deleted successfully' });
+        return NextResponse.json({ 
+            success: true, 
+            message: 'Model deleted successfully',
+            deletedFiles 
+        });
     } catch (error) {
         console.error('Error deleting model:', error);
         return NextResponse.json({ error: 'Failed to delete model' }, { status: 500 });
