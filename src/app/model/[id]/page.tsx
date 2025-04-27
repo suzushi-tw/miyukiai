@@ -42,6 +42,7 @@ import {
   DialogTrigger,
   DialogClose
 } from "@/components/ui/dialog"
+import { PromptWithCopy } from "@/components/promptwithcopy";
 
 function formatBytes(bytes: bigint, decimals = 2) {
   if (bytes === BigInt(0)) return "0 Bytes";
@@ -277,7 +278,6 @@ export default async function Page({
                               </Card>
                             )}
 
-                            {/* Prompts */}
                             {(image.metadata?.positivePrompt || image.metadata?.negativePrompt) && (
                               <Card>
                                 <CardHeader className="py-3">
@@ -285,20 +285,15 @@ export default async function Page({
                                 </CardHeader>
                                 <CardContent className="py-2">
                                   {image.metadata?.positivePrompt && (
-                                    <div className="mb-3">
-                                      <p className="text-xs text-muted-foreground mb-1">Positive:</p>
-                                      <p className="text-sm border rounded-md p-2 bg-muted/50">{image.metadata.positivePrompt}</p>
-                                    </div>
+                                    <PromptWithCopy label="Positive" text={image.metadata.positivePrompt} />
                                   )}
                                   {image.metadata?.negativePrompt && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground mb-1">Negative:</p>
-                                      <p className="text-sm border rounded-md p-2 bg-muted/50">{image.metadata.negativePrompt}</p>
-                                    </div>
+                                    <PromptWithCopy label="Negative" text={image.metadata.negativePrompt} />
                                   )}
                                 </CardContent>
                               </Card>
                             )}
+
                           </div>
                         </div>
 
