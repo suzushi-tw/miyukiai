@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
+import { PromptWithCopy } from "@/components/promptwithcopy";
 
 interface ImageMetadata {
   prompt?: string;
@@ -76,7 +77,7 @@ export default function ImagesGalleryPage() {
   const router = useRouter();
   const { ref, inView } = useInView();
   const [selectedImage, setSelectedImage] = useState<Image | null>(null);
-
+  const [copyState, setCopyState] = useState<Record<string, boolean>>({});
   const handleDownload = async (imageUrl: string, fileName: string) => {
     try {
       const response = await fetch(imageUrl);
@@ -286,39 +287,13 @@ export default function ImagesGalleryPage() {
                               </div>
                             )}
                             {image.metadata?.positivePrompt && (
-                              <div className="space-y-1.5">
-                                <div className="flex justify-between items-center">
-                                  <p className="text-xs text-muted-foreground font-medium">Negative</p>
-                                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => navigator.clipboard.writeText(image.metadata?.negativePrompt || '')}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                                      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                                    </svg>
-                                    <span className="sr-only">Copy</span>
-                                  </Button>
-                                </div>
-                                <div className="bg-muted p-2 rounded-md text-xs">
-                                  {image.metadata.positivePrompt}
-                                </div>
-                              </div>
+                              <PromptWithCopy label="Positive" text={image.metadata.positivePrompt} />
                             )}
                             {image.metadata?.negativePrompt && (
-                              <div className="space-y-1.5">
-                                <div className="flex justify-between items-center">
-                                  <p className="text-xs text-muted-foreground font-medium">Negative</p>
-                                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => navigator.clipboard.writeText(image.metadata?.negativePrompt || '')}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                                      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                                    </svg>
-                                    <span className="sr-only">Copy</span>
-                                  </Button>
-                                </div>
-                                <div className="bg-muted p-2 rounded-md text-xs">
-                                  {image.metadata.negativePrompt}
-                                </div>
-                              </div>
+                              <PromptWithCopy label="Negative" text={image.metadata.negativePrompt} />
                             )}
+
+
                           </CardContent>
                         </Card>
                       )}
