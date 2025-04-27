@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { PromptWithCopy } from "@/components/promptwithcopy";
+import Link from "next/link";
 
 interface ImageMetadata {
   prompt?: string;
@@ -244,10 +245,33 @@ export default function ImagesGalleryPage() {
 
                     {/* Metadata and Details */}
                     <div className="space-y-4 overflow-y-auto pr-2 max-h-[80vh]">
-                      <div>
+                      {/* <div>
                         <h3 className="text-lg font-semibold">Image Details</h3>
                         <p className="text-sm text-muted-foreground">Generated with {image.model?.name}</p>
-                      </div>
+                      </div> */}
+                      <Card className="border-none shadow-sm bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-primary/10 p-2 rounded-full">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                                <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+                                <path d="M7 7h.01" />
+                              </svg>
+                            </div>
+                            <div className="flex-grow">
+                              <p className="text-xs text-muted-foreground font-medium">Generated with</p>
+                              <h4 className="text-base font-medium">{image.model?.name || "Unknown Model"}</h4>
+                            </div>
+                            {image.model?.id && (
+                              <Button variant="secondary" size="sm" className="h-8" asChild>
+                                <Link href={`/model/${image.model.id}`}>
+                                  View Model
+                                </Link>
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
 
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
