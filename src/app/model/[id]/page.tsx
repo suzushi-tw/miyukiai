@@ -32,6 +32,16 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from "@/components/ui/dialog"
 
 function formatBytes(bytes: bigint, decimals = 2) {
   if (bytes === BigInt(0)) return "0 Bytes";
@@ -130,13 +140,183 @@ export default async function Page({
               <CarouselContent className="-ml-4 md:-ml-6">
                 {galleryImages.map(image => (
                   <CarouselItem key={image.id} className="pl-4 md:pl-6 sm:basis-1/2 md:basis-1/3 lg:basis-1/3">
-                    <div className="h-full p-2">
+                    {/* <div className="h-full p-2">
                       <GalleryImageItem
                         key={image.id}
                         image={image}
                         modelName={model.name}
                       />
-                    </div>
+                    </div> */}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <div
+                          className="aspect-square w-60 h-60 md:w-72 md:h-72 flex-shrink-0 rounded-lg overflow-hidden relative group border cursor-pointer"
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <Image
+                            src={image.url}
+                            fill
+                            alt={image.id}
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                            sizes="(max-width: 768px) 240px, 288px"
+                            priority={false}
+                          />
+                        </div>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+                        <DialogHeader>
+                          <DialogTitle className="text-lg font-medium">Image Details</DialogTitle>
+                          <DialogDescription>
+                            Generated with {model.name}
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4 overflow-hidden">
+                          {/* Image Preview */}
+                          <div className="lg:col-span-2 relative rounded-md overflow-hidden" style={{ minHeight: "400px" }}>
+                            <Image
+                              src={image.url}
+                              fill
+                              alt={model.name || "Model image"}
+                              className="object-contain"
+                            />
+                          </div>
+
+                          {/* Metadata */}
+                          <div className="space-y-3 overflow-y-auto pr-2 max-h-[60vh]">
+                            {/* Image Info */}
+                            <Card>
+                              <CardHeader className="py-3">
+                                <CardTitle className="text-sm font-medium">Image Information</CardTitle>
+                              </CardHeader>
+                              <CardContent className="py-2">
+                                <dl className="space-y-2 text-sm">
+                                  {image.metadata?.width && image.metadata?.height && (
+                                    <div className="flex justify-between">
+                                      <dt className="text-muted-foreground">Dimensions:</dt>
+                                      <dd>{image.metadata.width} × {image.metadata.height}</dd>
+                                    </div>
+                                  )}
+                                  {image.metadata?.bitDepth && (
+                                    <div className="flex justify-between">
+                                      <dt className="text-muted-foreground">Bit Depth:</dt>
+                                      <dd>{image.metadata.bitDepth}-bit</dd>
+                                    </div>
+                                  )}
+                                  {image.metadata?.colorType && (
+                                    <div className="flex justify-between">
+                                      <dt className="text-muted-foreground">Color Type:</dt>
+                                      <dd>{image.metadata.colorType}</dd>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">Created:</dt>
+                                    <dd>{new Intl.DateTimeFormat("en-US", {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                    }).format(image.createdAt)}</dd>
+                                  </div>
+                                </dl>
+                              </CardContent>
+                            </Card>
+
+                            {/* Generation Parameters */}
+                            {(image.metadata?.model || image.metadata?.seed || image.metadata?.steps) && (
+                              <Card>
+                                <CardHeader className="py-3">
+                                  <CardTitle className="text-sm font-medium">Generation Parameters</CardTitle>
+                                </CardHeader>
+                                <CardContent className="py-2">
+                                  <dl className="space-y-2 text-sm">
+                                    {image.metadata?.model && (
+                                      <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Model:</dt>
+                                        <dd className="max-w-[180px] text-right">{image.metadata.model}</dd>
+                                      </div>
+                                    )}
+                                    {image.metadata?.seed !== undefined && (
+                                      <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Seed:</dt>
+                                        <dd>{image.metadata.seed}</dd>
+                                      </div>
+                                    )}
+                                    {image.metadata?.steps !== undefined && (
+                                      <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Steps:</dt>
+                                        <dd>{image.metadata.steps}</dd>
+                                      </div>
+                                    )}
+                                    {image.metadata?.cfg !== undefined && (
+                                      <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">CFG Scale:</dt>
+                                        <dd>{image.metadata.cfg}</dd>
+                                      </div>
+                                    )}
+                                    {image.metadata?.sampler && (
+                                      <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Sampler:</dt>
+                                        <dd>{image.metadata.sampler}</dd>
+                                      </div>
+                                    )}
+                                    {image.metadata?.scheduler && (
+                                      <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Scheduler:</dt>
+                                        <dd>{image.metadata.scheduler}</dd>
+                                      </div>
+                                    )}
+                                    {image.metadata?.denoise !== undefined && (
+                                      <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Denoise:</dt>
+                                        <dd>{image.metadata.denoise}</dd>
+                                      </div>
+                                    )}
+                                  </dl>
+                                </CardContent>
+                              </Card>
+                            )}
+
+                            {/* Prompts */}
+                            {(image.metadata?.positivePrompt || image.metadata?.negativePrompt) && (
+                              <Card>
+                                <CardHeader className="py-3">
+                                  <CardTitle className="text-sm font-medium">Prompts</CardTitle>
+                                </CardHeader>
+                                <CardContent className="py-2">
+                                  {image.metadata?.positivePrompt && (
+                                    <div className="mb-3">
+                                      <p className="text-xs text-muted-foreground mb-1">Positive:</p>
+                                      <p className="text-sm border rounded-md p-2 bg-muted/50">{image.metadata.positivePrompt}</p>
+                                    </div>
+                                  )}
+                                  {image.metadata?.negativePrompt && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground mb-1">Negative:</p>
+                                      <p className="text-sm border rounded-md p-2 bg-muted/50">{image.metadata.negativePrompt}</p>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
+                          </div>
+                        </div>
+
+                        <DialogFooter className="mt-4 gap-2">
+                          <Button asChild variant="outline" size="sm">
+                            <a href={image.url} download target="_blank" rel="noopener noreferrer">
+                              <Download className="mr-2 h-4 w-4" /> Download Image
+                            </a>
+                          </Button>
+                          <DialogClose asChild>
+                            <Button type="button" variant="secondary" size="sm">
+                              Close
+                            </Button>
+                          </DialogClose>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
                   </CarouselItem>
                 ))}
               </CarouselContent>
