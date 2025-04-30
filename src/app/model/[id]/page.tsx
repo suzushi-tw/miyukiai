@@ -8,6 +8,7 @@ import {
   BookOpen,
   FileText,
   User,
+  Link as LinkIcon
 } from "lucide-react";
 import {
   Card,
@@ -43,6 +44,7 @@ import {
   DialogClose
 } from "@/components/ui/dialog"
 import { PromptWithCopy } from "@/components/promptwithcopy";
+import { ShareButton } from "@/components/Sharebutton";
 
 function formatBytes(bytes: bigint, decimals = 2) {
   if (bytes === BigInt(0)) return "0 Bytes";
@@ -356,11 +358,14 @@ export default async function Page({
         <div className="space-y-6 lg:mt-0">
           <Card>
             <CardContent className="pt-6">
-              <Button asChild size="lg" className="w-full">
+              <Button asChild size="lg" className="w-full mb-3">
                 <a href={model.fileUrl} download={model.fileName}>
                   <Download className="mr-2 h-5 w-5" /> Download Model
                 </a>
               </Button>
+
+              <ShareButton modelId={id} />
+
               <p className="text-center text-sm text-muted-foreground mt-3">
                 {formattedFileSize} • {model.fileName}
               </p>
@@ -463,11 +468,11 @@ export default async function Page({
                   <p className="font-semibold group-hover:text-primary transition-colors">
                     {model.user.name || "Unknown User"}
                   </p>
-                  {model.user.email && (
+                  {/* {model.user.email && (
                     <p className="text-sm text-muted-foreground">
                       {model.user.email}
                     </p>
-                  )}
+                  )} */}
                 </div>
               </Link>
             </CardContent>

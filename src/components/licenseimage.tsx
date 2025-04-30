@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Image as ImageIcon, X, Info } from "lucide-react";
+import { Image as ImageIcon, X, Info, AlertCircle } from "lucide-react";
+import * as nsfwjs from 'nsfwjs';
 
 import {
   FormControl,
@@ -27,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 import { LicenseImagesStepProps } from "../lib/types";
 import { ComfyMetadata } from "@/utils/getimgmetadata";
@@ -40,6 +42,11 @@ export default function LicenseImagesStep({
 }: LicenseImagesStepProps) {
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
   const [selectedMetadata, setSelectedMetadata] = useState<ComfyMetadata | null>(null);
+  // New states for NSFW detection
+  const [nsfwModel, setNsfwModel] = useState<any>(null);
+  const [isModelLoading, setIsModelLoading] = useState(false);
+  const [nsfwStatus, setNsfwStatus] = useState<Record<number, boolean>>({});
+  const [revealedImages, setRevealedImages] = useState<Record<number, boolean>>({});
   
   const licenseOptions = [
     { value: "mit", label: "MIT" },
@@ -50,6 +57,72 @@ export default function LicenseImagesStep({
     { value: "custom", label: "Custom License" },
   ];
   
+  // Load NSFW detection model
+  useEffect(() => {
+    async function loadNsfwModel() {
+      if (!nsfwModel && !isModelLoading) {
+        setIsModelLoading(true);
+        try {
+          const loadedModel = await nsfwjs.load();
+          setNsfwModel(loadedModel);
+          console.log("NSFW detection model loaded");
+        } catch (error) {
+          console.error("Failed to load NSFW detection model:", error);
+        } finally {
+          setIsModelLoading(false);
+        }
+      }
+    }
+    
+    loadNsfwModel();
+  }, [nsfwModel, isModelLoading]);
+
+  // Function to check if image is NSFW
+  const checkImageForNsfw = useCallback(async (imageUrl: string, index: number) => {
+    if (!nsfwModel) return;
+    
+    try {
+      // Use the browser's HTMLImageElement, not the Next.js Image component
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.src = imageUrl;
+      
+      img.onload = async () => {
+        // Classify the image
+        const predictions = await nsfwModel.classify(img);
+        
+        // Check for NSFW content
+        const pornPrediction = predictions.find((p: any) => p.className === 'Porn');
+        const hentaiPrediction = predictions.find((p: any) => p.className === 'Hentai');
+        
+        const pornProb = pornPrediction ? pornPrediction.probability : 0;
+        const hentaiProb = hentaiPrediction ? hentaiPrediction.probability : 0;
+        
+        // Set NSFW status if either category has high probability
+        const isNsfw = pornProb > 0.6 || hentaiProb > 0.6;
+        
+        setNsfwStatus(prev => ({
+          ...prev,
+          [index]: isNsfw
+        }));
+      };
+    } catch (error) {
+      console.error("Failed to classify image:", error);
+    }
+  }, [nsfwModel]);
+  
+  // Check images when they're added or when model is loaded
+  useEffect(() => {
+    if (nsfwModel && previewImages.length > 0) {
+      previewImages.forEach((image, index) => {
+        // Only check images that haven't been classified yet
+        if (nsfwStatus[index] === undefined) {
+          checkImageForNsfw(image.preview, index);
+        }
+      });
+    }
+  }, [nsfwModel, previewImages, nsfwStatus, checkImageForNsfw]);
+  
   const showMetadata = (index: number) => {
     const metadata = previewImages[index].metadata;
     if (metadata) {
@@ -57,6 +130,15 @@ export default function LicenseImagesStep({
       setMetadataDialogOpen(true);
     }
   };
+
+  // Function to reveal blurred NSFW image
+  const revealImage = (index: number) => {
+    setRevealedImages(prev => ({
+      ...prev,
+      [index]: true
+    }));
+  };
+
 
   return (
     <div className="space-y-6">
@@ -107,12 +189,33 @@ export default function LicenseImagesStep({
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {previewImages.map((image, index) => (
             <div key={index} className="relative aspect-square rounded-md overflow-hidden border border-border group">
+              {/* Apply blur filter conditionally */}
               <Image
                 src={image.preview}
                 alt="Preview"
                 fill
-                className="object-cover"
+                className={`object-cover ${nsfwStatus[index] && !revealedImages[index] ? 'blur-xl' : ''}`}
               />
+              
+              {/* NSFW overlay */}
+              {nsfwStatus[index] && !revealedImages[index] && (
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-3 text-center">
+                  <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
+                  <p className="text-white text-sm mb-3">Potentially sensitive content</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      revealImage(index);
+                    }}
+                    className="text-xs bg-background/20 hover:bg-background/40 border-white/40 text-white"
+                  >
+                    View Anyway
+                  </Button>
+                </div>
+              )}
+              
               <div className="absolute top-2 right-2 flex space-x-1">
                 {image.metadata && (
                   <button
@@ -132,7 +235,7 @@ export default function LicenseImagesStep({
                 </button>
               </div>
               
-              {image.metadata && (
+              {image.metadata && !nsfwStatus[index] && (
                 <div className="absolute bottom-0 left-0 right-0 bg-background/80 p-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
                   {image.metadata.model && (
                     <div className="truncate">{image.metadata.model}</div>
@@ -163,8 +266,11 @@ export default function LicenseImagesStep({
         <FormDescription>
           Upload sample images created with your model (max 5 images)
         </FormDescription>
+        {isModelLoading && (
+          <p className="text-xs text-muted-foreground">Loading content detection model...</p>
+        )}
       </div>
-      
+
       {/* Fixed Metadata Dialog */}
       <Dialog open={metadataDialogOpen} onOpenChange={setMetadataDialogOpen}>
         <DialogContent className="sm:max-w-[800px] md:max-w-[900px] lg:max-w-[1000px] p-0">
