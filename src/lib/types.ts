@@ -10,6 +10,16 @@ export type PreviewImageType = {
   metadata?: ComfyMetadata;
 };
 
+export type ModelUploadStepProps = {
+  form: UseFormReturn<ModelFormSchema>;
+  modelFile: File | null;
+  modelInputRef: React.RefObject<HTMLInputElement>;
+  isUploading: boolean;
+  uploadProgress: number;
+  handleModelUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  previewImages: { file: File; preview: string; metadata?: ComfyMetadata }[];
+};
+
 export interface LicenseImagesStepProps {
   form: UseFormReturn<ModelFormSchema>;
   previewImages: PreviewImageType[];
