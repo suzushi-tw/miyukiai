@@ -114,7 +114,8 @@ export default function UploadModelPage() {
                         {
                             device,
                             revision: "main",
-                            dtype: 'q4',
+                            dtype: 'q8',
+                            
                         }
                     );
                     
