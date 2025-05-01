@@ -6,8 +6,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Upload, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-// Add the pipeline import
-import { pipeline } from "@huggingface/transformers";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -75,12 +73,7 @@ export default function UploadModelPage() {
     const [id, setid] = useState("");
     const [nsfwStatus, setNsfwStatus] = useState<Record<number, boolean>>({});
 
-    // Add NSFW model states
-    const [nsfwClassifier, setNsfwClassifier] = useState<any>(null);
-    const [isModelLoading, setIsModelLoading] = useState(false);
-    const [modelLoadError, setModelLoadError] = useState<string | null>(null);
-    const [deviceType, setDeviceType] = useState<string>("wasm");
-
+    // Remove NSFW model states - we'll use the ElysiaJS API instead
     const [incompleteUploads, setIncompleteUploads] = useState<{
         id: string;
         fileName: string;
@@ -91,57 +84,7 @@ export default function UploadModelPage() {
     const previewInputRef = useRef<HTMLInputElement>(null);
     const modelInputRef = useRef<HTMLInputElement>(null);
 
-    // Add effect to load NSFW model immediately when page loads
-    useEffect(() => {
-        let isMounted = true;
-        
-        async function loadNsfwModel() {
-            if (!nsfwClassifier && !isModelLoading) {
-                try {
-                    setIsModelLoading(true);
-                    console.log("Starting HuggingFace NSFW model load...");
-                    
-                    // Use WebAssembly (CPU) as it's most widely compatible
-                    const device = "wasm";
-                    setDeviceType(device);
-                    
-                    console.log(`Loading NSFW classifier with device: ${device}`);
-                    
-                    // Use the smallest quantized model for faster loading
-                    const classifier = await pipeline(
-                        "image-classification", 
-                        "AdamCodd/vit-base-nsfw-detector", 
-                        {
-                            device,
-                            revision: "main",
-                            dtype: 'q8',
-                            
-                        }
-                    );
-                    
-                    if (isMounted) {
-                        console.log("✅ NSFW detection model loaded successfully");
-                        setNsfwClassifier(classifier);
-                    }
-                } catch (error) {
-                    console.error("❌ Failed to load NSFW detection model:", error);
-                    if (isMounted) {
-                        setModelLoadError(error instanceof Error ? error.message : "Unknown error loading model");
-                    }
-                } finally {
-                    if (isMounted) {
-                        setIsModelLoading(false);
-                    }
-                }
-            }
-        }
-        
-        loadNsfwModel();
-        
-        return () => {
-            isMounted = false;
-        };
-    }, []);
+    // Remove effect to load NSFW model - using external API instead
 
     // Check for incomplete uploads when component mounts
     useEffect(() => {
@@ -433,11 +376,7 @@ export default function UploadModelPage() {
                         removePreviewImage={removePreviewImage}
                         nsfwStatus={nsfwStatus}
                         setNsfwStatus={setNsfwStatus}
-                        // Add these new props
-                        nsfwClassifier={nsfwClassifier}
-                        isModelLoading={isModelLoading}
-                        deviceType={deviceType}
-                        modelLoadError={modelLoadError}
+                        // Remove HuggingFace-related props
                     />
                 );
 

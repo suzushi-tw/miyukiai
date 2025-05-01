@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { Image as ImageIcon, X, Info, AlertCircle, Loader2 } from "lucide-react";
-import { RawImage } from "@huggingface/transformers";
+// Remove HuggingFace import
+// import { RawImage } from "@huggingface/transformers";
 
 import {
   FormControl,
@@ -30,6 +31,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ComfyMetadata } from "@/utils/getimgmetadata";
+import { toast } from "sonner";
+
+// Define response type for NSFW API
+interface NsfwApiResponse {
+  nsfwScore: number;
+  error?: string;
+  details?: string;
+}
+
+// Define API URL
+const NSFW_API_URL = 'https://nsfw.miyukiai.com/analyze';
 
 export interface LicenseImagesStepProps {
   form: any;
@@ -39,11 +51,7 @@ export interface LicenseImagesStepProps {
   removePreviewImage: (index: number) => void;
   setNsfwStatus: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
   nsfwStatus: Record<number, boolean>;
-  // New props passed from parent
-  nsfwClassifier: any;
-  isModelLoading: boolean;
-  deviceType: string;
-  modelLoadError: string | null;
+  // Remove HuggingFace props
 }
 
 export default function LicenseImagesStep({
@@ -54,17 +62,12 @@ export default function LicenseImagesStep({
   removePreviewImage,
   setNsfwStatus,
   nsfwStatus,
-  // Receive props from parent
-  nsfwClassifier,
-  isModelLoading,
-  deviceType,
-  modelLoadError
 }: LicenseImagesStepProps) {
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
   const [selectedMetadata, setSelectedMetadata] = useState<ComfyMetadata | null>(null);
   const [revealedImages, setRevealedImages] = useState<Record<number, boolean>>({});
-  
-  // No need to initialize the classifier here since we're receiving it as a prop
+  const [isCheckingNsfw, setIsCheckingNsfw] = useState<Record<number, boolean>>({});
+  const checkedImagesRef = useRef<Set<number>>(new Set());
   
   const licenseOptions = [
     { value: "mit", label: "MIT" },
@@ -75,82 +78,82 @@ export default function LicenseImagesStep({
     { value: "custom", label: "Custom License" },
   ];
   
-  // Simplified image classification function - uses the passed in classifier
-  const checkImageForNsfw = useCallback(async (imageUrl: string, index: number) => {
-    if (!nsfwClassifier) return;
+  // Function to check an image for NSFW content using the ElysiaJS API
+  const checkImageForNsfw = useCallback(async (imageFile: File, index: number) => {
+    // Skip if already checking or already checked
+    if (isCheckingNsfw[index] || checkedImagesRef.current.has(index)) {
+      return;
+    }
+    
+    // Set checking status
+    setIsCheckingNsfw(prev => ({ ...prev, [index]: true }));
     
     try {
-      console.log(`Starting classification for image ${index}...`);
+      console.log(`Checking image ${index} for NSFW content via API...`);
       
-      // Create an image element
-      const img = new window.Image();
-      img.crossOrigin = 'anonymous';
-      img.src = imageUrl;
+      // Prepare form data for upload
+      const formData = new FormData();
+      formData.append('image', imageFile);
       
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
+      // Call the ElysiaJS API
+      const response = await fetch(NSFW_API_URL, {
+        method: 'POST',
+        body: formData,
       });
       
-      // Create a canvas to get the image data
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        console.error("Couldn't get canvas context");
-        return;
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
       }
       
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
+      const result = await response.json() as NsfwApiResponse;
       
-      // Convert to blob
-      const blob = await new Promise<Blob>((resolve) => 
-        canvas.toBlob(blob => resolve(blob!), "image/jpeg")
-      );
+      // Check for API error
+      if (result.error) {
+        throw new Error(result.error);
+      }
       
-      console.log(`Image ${index} converted to blob, creating RawImage...`);
+      // Get NSFW score and determine if image is NSFW
+      const nsfwScore = result.nsfwScore;
+      const isNsfw = nsfwScore > 0.6; // Threshold for NSFW content
       
-      // Create a RawImage from the blob
-      const rawImage = await RawImage.fromBlob(blob);
+      console.log(`Image ${index} NSFW score: ${nsfwScore.toFixed(2)}, Flagged: ${isNsfw}`);
       
-      console.log(`Running classification for image ${index}...`);
-      
-      // Run classification
-      const results = await nsfwClassifier(rawImage);
-      
-      // Extract scores
-      const nsfwScore = results.find((r: any) => r.label === "nsfw")?.score || 0;
-      const sfwScore = results.find((r: any) => r.label === "sfw")?.score || 0;
-      
-      // Normalize the NSFW score (same as in Vue example)
-      const normalizedNsfwScore = nsfwScore / (nsfwScore + sfwScore);
-      
-      // Mark as NSFW if score > 60%
-      const isNsfw = normalizedNsfwScore > 0.6;
-      
-      console.log(`Image ${index} NSFW score: ${(normalizedNsfwScore * 100).toFixed(1)}%`);
-      
+      // Update NSFW status
       setNsfwStatus(prev => ({
         ...prev,
         [index]: isNsfw
       }));
+      
+      // Mark as checked
+      checkedImagesRef.current.add(index);
+      
     } catch (error) {
-      console.error(`Failed to classify image ${index}:`, error);
+      console.error(`Failed to check image ${index} for NSFW content:`, error);
+      toast.error(`Failed to check image ${index + 1} for sensitive content`);
+      
+      // Default to not NSFW on error
+      setNsfwStatus(prev => ({
+        ...prev,
+        [index]: false
+      }));
+      
+      // Still mark as checked to avoid continuous retries
+      checkedImagesRef.current.add(index);
+    } finally {
+      // Clear checking status
+      setIsCheckingNsfw(prev => ({ ...prev, [index]: false }));
     }
-  }, [nsfwClassifier, setNsfwStatus]);
+  }, [isCheckingNsfw, setNsfwStatus]);
   
-  // Check images when they're added or when model is loaded
+  // Check images when they're added
   useEffect(() => {
-    if (nsfwClassifier && previewImages.length > 0) {
-      previewImages.forEach((image, index) => {
-        // Only check images that haven't been classified yet
-        if (nsfwStatus[index] === undefined) {
-          checkImageForNsfw(image.preview, index);
-        }
-      });
-    }
-  }, [nsfwClassifier, previewImages, nsfwStatus, checkImageForNsfw]);
+    previewImages.forEach((image, index) => {
+      // Only check if not already checked or checking
+      if (!checkedImagesRef.current.has(index) && !isCheckingNsfw[index]) {
+        checkImageForNsfw(image.file, index);
+      }
+    });
+  }, [previewImages, checkImageForNsfw, isCheckingNsfw]);
   
   const showMetadata = (index: number) => {
     const metadata = previewImages[index].metadata;
@@ -175,20 +178,6 @@ export default function LicenseImagesStep({
         <p className="text-muted-foreground">
           Add license information and preview images for your model
         </p>
-        
-        {/* Add non-blocking loading indicator with device info */}
-        {isModelLoading && (
-          <div className="flex items-center text-xs text-amber-600 mt-2">
-            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            <span>Loading content detection model on {deviceType} in background...</span>
-          </div>
-        )}
-        
-        {modelLoadError && (
-          <p className="text-xs text-red-500 mt-1">
-            Note: Content detection couldn&apos;t load ({modelLoadError}). You can still continue.
-          </p>
-        )}
       </div>
       
       <Card>
@@ -236,8 +225,15 @@ export default function LicenseImagesStep({
                 src={image.preview}
                 alt="Preview"
                 fill
-                className={`object-cover ${nsfwStatus[index] && !revealedImages[index] ? 'blur-xl' : ''}`}
+                className={`object-cover ${isCheckingNsfw[index] ? 'opacity-50' : ''} ${nsfwStatus[index] && !revealedImages[index] ? 'blur-xl' : ''}`}
               />
+              
+              {/* Loading indicator for NSFW check */}
+              {isCheckingNsfw[index] && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </div>
+              )}
               
               {/* NSFW overlay */}
               {nsfwStatus[index] && !revealedImages[index] && (
