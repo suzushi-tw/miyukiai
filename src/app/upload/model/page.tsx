@@ -6,6 +6,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Upload, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+// Add the pipeline import
+import { pipeline } from "@huggingface/transformers";
+
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import {
@@ -88,13 +91,11 @@ export default function UploadModelPage() {
     const previewInputRef = useRef<HTMLInputElement>(null);
     const modelInputRef = useRef<HTMLInputElement>(null);
 
+    // Add effect to load NSFW model immediately when page loads
     useEffect(() => {
         let isMounted = true;
         
         async function loadNsfwModel() {
-            // Dynamically import pipeline only when needed on the client
-            const { pipeline } = await import('@huggingface/transformers');
-
             if (!nsfwClassifier && !isModelLoading) {
                 try {
                     setIsModelLoading(true);
@@ -106,7 +107,7 @@ export default function UploadModelPage() {
                     
                     console.log(`Loading NSFW classifier with device: ${device}`);
                     
-                    // Use the 8-bit quantized model (q8)
+                    // Use the smallest quantized model for faster loading
                     const classifier = await pipeline(
                         "image-classification", 
                         "AdamCodd/vit-base-nsfw-detector", 
@@ -119,7 +120,7 @@ export default function UploadModelPage() {
                     );
                     
                     if (isMounted) {
-                        console.log("✅ NSFW detection model loaded successfully (q8 quantized)");
+                        console.log("✅ NSFW detection model loaded successfully");
                         setNsfwClassifier(classifier);
                     }
                 } catch (error) {
