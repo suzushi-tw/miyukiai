@@ -46,6 +46,7 @@ import {
 import { PromptWithCopy } from "@/components/promptwithcopy";
 import { ShareButton } from "@/components/Sharebutton";
 import NsfwImageWrapper from "@/components/NSFWimagewrapper";
+import { DownloadButton } from "@/components/Download";
 
 function formatBytes(bytes: bigint, decimals = 2) {
   if (bytes === BigInt(0)) return "0 Bytes";
@@ -167,7 +168,7 @@ export default async function Page({
                             className="object-cover transition-transform duration-300 group-hover:scale-105"
                             sizes="(max-width: 768px) 240px, 288px"
                             priority={false}
-                        
+
                           />
                         </div>
                       </DialogTrigger>
@@ -363,11 +364,13 @@ export default async function Page({
         <div className="space-y-6 lg:mt-0">
           <Card>
             <CardContent className="pt-6">
-              <Button asChild size="lg" className="w-full mb-3">
-                <a href={model.fileUrl} download={model.fileName}>
-                  <Download className="mr-2 h-5 w-5" /> Download Model
-                </a>
-              </Button>
+              <DownloadButton
+                modelId={id}
+                fileUrl={model.fileUrl}
+                fileName={model.fileName}
+              >
+                Download Model
+              </DownloadButton>
 
               <ShareButton modelId={id} />
 
@@ -376,7 +379,6 @@ export default async function Page({
               </p>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader>
               <CardTitle>Model Details</CardTitle>
