@@ -60,6 +60,7 @@ model Model {
   modelType    String
   baseModel    String
   tags         String?
+   triggerWords String?   @default("")
   license      String?
   userId       String
   user         user          @relation(fields: [userId], references: [id])
@@ -82,6 +83,7 @@ model ModelImage {
   user      user     @relation(fields: [userId], references: [id]) // Add relation to user
   url       String
   metadata  Json?
+  isNsfw    Boolean  @default(false)
   createdAt DateTime @default(now())
   
   @@index([modelId])

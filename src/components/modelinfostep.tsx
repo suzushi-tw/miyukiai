@@ -1,3 +1,4 @@
+// filepath: c:\Users\huang\misoai\src\components\modelinfostep.tsx
 "use client";
 
 import { UseFormReturn } from "react-hook-form";
@@ -13,12 +14,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { baseModelOptions } from "@/utils/model";
@@ -29,6 +30,8 @@ interface BasicInfoStepProps {
 }
 
 const BasicInfoStep = ({ form }: BasicInfoStepProps) => {
+  // Watch the modelType field to conditionally show trigger words
+  const watchedModelType = form.watch("modelType");
 
   return (
     <div className="space-y-6">
@@ -85,7 +88,7 @@ const BasicInfoStep = ({ form }: BasicInfoStepProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Model Type*</FormLabel>
-                    <Select 
+                    <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
@@ -116,7 +119,7 @@ const BasicInfoStep = ({ form }: BasicInfoStepProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Base Model*</FormLabel>
-                    <Select 
+                    <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
@@ -141,6 +144,29 @@ const BasicInfoStep = ({ form }: BasicInfoStepProps) => {
                 )}
               />
             </div>
+
+            {/* Conditionally render Trigger Words field */}
+            {watchedModelType === 'lora' && (
+              <FormField
+                control={form.control}
+                name="triggerWords"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Trigger Words</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., mylora, style-mylora (comma-separated)"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Required words to activate this LoRA (comma-separated if multiple)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid grid-cols-1 gap-6">
               <FormField
@@ -168,9 +194,9 @@ const BasicInfoStep = ({ form }: BasicInfoStepProps) => {
                 <FormItem>
                   <FormLabel>Tags</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="art, portrait, realistic, etc. (comma-separated)" 
-                      {...field} 
+                    <Input
+                      placeholder="art, portrait, realistic, etc. (comma-separated)"
+                      {...field}
                     />
                   </FormControl>
                   <FormDescription>

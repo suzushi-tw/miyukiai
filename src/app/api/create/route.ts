@@ -1,3 +1,4 @@
+// filepath: c:\Users\huang\misoai\src\app\api\create\route.ts
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/prisma';
@@ -6,6 +7,7 @@ import { db } from '@/lib/prisma';
 interface ImageUpload {
   url: string;
   metadata?: Record<string, unknown>;
+  isNsfw?: boolean;
 }
 
 export async function POST(request: Request) {
@@ -29,6 +31,7 @@ export async function POST(request: Request) {
       baseModel,
       license,
       tags,
+      triggerWords, // <-- Destructure triggerWords
       fileUrl,
       fileName,
       fileSize,
@@ -44,6 +47,7 @@ export async function POST(request: Request) {
         modelType,
         baseModel,
         tags,
+        triggerWords, // <-- Add triggerWords here
         license,
         fileUrl,
         fileName,
@@ -54,6 +58,7 @@ export async function POST(request: Request) {
           create: images.map((image: ImageUpload) => ({
             url: image.url,
             metadata: image.metadata || {},
+            isNsfw: image.isNsfw || false,
             userId: sessionData.user.id
           }))
         }
@@ -76,6 +81,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: model.id, success: true, model: serializedModel });
   } catch (error) {
     console.error('Error saving model to database:', error);
-    return NextResponse.json({ error: 'Failed to save model' }, { status: 500 });
+    // Provide more specific error message if possible
+    const errorMessage = error instanceof Error ? error.message : 'Failed to save model';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

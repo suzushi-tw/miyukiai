@@ -21,6 +21,7 @@ export const modelFormSchema = z.object({
     required_error: "Please select a license.",
   }),
   tags: z.string().optional(),
+  triggerWords: z.string().optional(),
 });
 
 export type ModelFormSchema = z.infer<typeof modelFormSchema>;
