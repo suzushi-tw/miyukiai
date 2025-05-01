@@ -6,12 +6,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Download, Tag, Calendar } from "lucide-react"; // Keep Calendar if you plan to add date later
 import { formatDistanceToNow } from 'date-fns';
 import type { TransformedModel } from '@/types/model';
+import NsfwImageWrapper from './NSFWimagewrapper';
 
 interface ModelCardProps {
   model: TransformedModel;
 }
 
 export default function ModelCard({ model }: ModelCardProps) {
+ 
+  const imageId = model.images?.[0]?.id || model.id;
+  const isNsfw = model.images?.[0]?.isNsfw || false;
   // Format the file size
   const formatFileSize = (bytes: bigint) => {
     if (bytes === BigInt(0)) return '0 bytes'; // Handle zero case
@@ -37,13 +41,13 @@ export default function ModelCard({ model }: ModelCardProps) {
       {/* Much larger image container without darkening gradient */}
       <div className="relative aspect-[16/20] w-full overflow-hidden"> {/* Increased height for a much taller image */}
         <Link href={`/model/${model.id}`} className="block h-full">
-          <Image
-            src={imageUrl}
+          <NsfwImageWrapper
+            imageUrl={imageUrl}
+            imageId={imageId}
+            isNsfw={isNsfw}
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
             alt={model.name}
-            fill
-            className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority // Prioritize loading for LCP
+            priority={false}
           />
         </Link>
 
@@ -66,7 +70,7 @@ export default function ModelCard({ model }: ModelCardProps) {
             <h3 className="font-semibold text-base md:text-lg leading-tight tracking-tight line-clamp-1 text-white drop-shadow-sm mb-2">
               {model.name}
             </h3>
-            
+
             {/* Tags on image */}
             {tagList.length > 0 && (
               <div className="flex flex-wrap gap-1.5 items-center">
@@ -86,7 +90,7 @@ export default function ModelCard({ model }: ModelCardProps) {
                 )}
               </div>
             )}
-            
+
             {/* Base model badge */}
             {model.baseModel && (
               <Badge variant="secondary" className="bg-black/60 hover:bg-black/75 backdrop-blur-sm text-white text-xs rounded-md px-2.5 py-1 shadow-sm border border-white/10 mt-2">

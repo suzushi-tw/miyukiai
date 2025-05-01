@@ -14,6 +14,7 @@ export interface ApiModel {
     images?: Array<{
         id: string;
         url: string;
+        isNsfw?: boolean;
     }>;
     user?: {
         id: string;

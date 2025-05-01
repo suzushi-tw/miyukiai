@@ -1,89 +1,115 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Download } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import NsfwImageWrapper from "@/components/NSFWimagewrapper";
-import type { TransformedModel } from "@/types/model";
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useInView } from 'react-intersection-observer';
+import { fetchModels } from '@/services/modelservice';
+import ModelCard from '@/components/Modelcard';
+import ModelCardSkeleton from '@/components/modelskeleton';
+import type { ApiModel, TransformedModel } from '@/types/model';
 
-interface ModelCardProps {
-  model: TransformedModel;
+function transformModel(apiModel: ApiModel): TransformedModel {
+  return {
+    id: apiModel.id,
+    name: apiModel.name || '',
+    description: apiModel.description || null,
+    version: apiModel.version || '1.0',
+    modelType: apiModel.modelType || 'Unknown',
+    baseModel: apiModel.baseModel || 'Unknown',
+    tags: apiModel.tags || null,
+    downloads: apiModel.downloads || 0,
+    fileSize: typeof apiModel.fileSize === 'string' 
+      ? BigInt(apiModel.fileSize) 
+      : apiModel.fileSize as bigint,
+    createdAt: new Date(apiModel.createdAt || Date.now()),
+    images: apiModel.images?.map(img => ({
+      id: img.id,
+      url: img.url,
+      isNsfw: img.isNsfw || false // Include the NSFW status
+    })) || [],
+    user: {
+      id: apiModel.user?.id || 'unknown-user-id',
+      name: apiModel.user?.name || 'Unknown User',
+      image: apiModel.user?.image || null
+    }
+  };
 }
 
-export default function ModelCard({ model }: ModelCardProps) {
-  // Get first image or use placeholder
-  const firstImage = model.images && model.images.length > 0
-    ? model.images[0]
-    : null;
 
-  const formattedDate = new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(model.createdAt);
+export default function HomePage() {
+  const { ref, inView } = useInView();
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    status
+  } = useInfiniteQuery({
+    queryKey: ['models'],
+    queryFn: ({ pageParam = 1 }) => fetchModels(pageParam),
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 1
+  });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
-    <Card className="overflow-hidden h-full flex flex-col transition-transform hover:shadow-md">
-      <Link 
-        href={`/model/${model.id}`}
-        className="overflow-hidden h-48 relative"
-      >
-        {firstImage ? (
-          <NsfwImageWrapper
-            imageUrl={firstImage.url}
-            imageId={firstImage.id}
-            isNsfw={!!firstImage.isNsfw}
-            className="object-cover transition-transform duration-300 hover:scale-105"
-            alt={`${model.name} preview`}
-          />
+    <div className="container mx-auto py-8 px-4 max-w-6xl">
+      <h1 className="text-4xl font-bold mb-8">New Models</h1>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {status === 'pending' ? (
+          // Show skeletons while initially loading
+          Array.from({ length: 8 }).map((_, i) => (
+            <ModelCardSkeleton key={i} />
+          ))
+        ) : status === 'error' ? (
+          <div className="col-span-full text-center py-10">
+            <h3 className="text-xl font-medium text-red-500">
+              Error loading models
+            </h3>
+            <p className="mt-2">Please try again later</p>
+          </div>
         ) : (
-          <div className="w-full h-full bg-secondary flex items-center justify-center text-muted-foreground text-sm">
-            No image available
-          </div>
+          // Render the AI models
+          data.pages.flatMap((page) => (
+            page.models.map((model) => (
+              <ModelCard key={model.id} model={transformModel(model)} />
+            ))
+          ))
         )}
-      </Link>
-      
-      <CardContent className="flex flex-col flex-grow p-4">
-        <div className="mb-2 flex items-start justify-between">
-          <Link 
-            href={`/model/${model.id}`}
-            className="text-lg font-medium hover:underline line-clamp-1"
-          >
-            {model.name}
-          </Link>
-          
-          <Badge variant="outline" className="ml-2 shrink-0">
-            {model.modelType}
-          </Badge>
+
+        {/* Loading more items */}
+        {isFetchingNextPage && (
+          <>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <ModelCardSkeleton key={`loading-more-${i}`} />
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* Intersection observer target */}
+      <div
+        ref={ref}
+        className="h-10 w-full flex items-center justify-center mt-8"
+      >
+        {hasNextPage && !isFetchingNextPage && (
+          <span className="text-sm text-gray-500">Scroll for more</span>
+        )}
+      </div>
+
+      {/* End of results message */}
+      {!hasNextPage && status !== 'pending' && (
+        <div className="text-center mt-8 text-gray-500">
+          No more models to load
         </div>
-        
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-auto">
-          {model.description || "No description available"}
-        </p>
-        
-        <div className="flex items-center justify-between mt-4 pt-2 border-t border-border text-xs text-muted-foreground">
-          <div className="flex items-center">
-            <Avatar className="w-6 h-6 mr-2">
-              <AvatarImage src={model.user.image || undefined} alt={model.user.name} />
-              <AvatarFallback>{model.user.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <span className="truncate">{model.user.name}</span>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center">
-              <Download className="w-3.5 h-3.5 mr-1" />
-              <span>{model.downloads.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center">
-              <CalendarDays className="w-3.5 h-3.5 mr-1" />
-              <span>{formattedDate}</span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
