@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { Image as ImageIcon, X, Info, AlertCircle, Loader2 } from "lucide-react";
-// Remove HuggingFace import
-// import { RawImage } from "@huggingface/transformers";
 
 import {
   FormControl,
@@ -51,7 +49,6 @@ export interface LicenseImagesStepProps {
   removePreviewImage: (index: number) => void;
   setNsfwStatus: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
   nsfwStatus: Record<number, boolean>;
-  // Remove HuggingFace props
 }
 
 export default function LicenseImagesStep({
@@ -67,7 +64,9 @@ export default function LicenseImagesStep({
   const [selectedMetadata, setSelectedMetadata] = useState<ComfyMetadata | null>(null);
   const [revealedImages, setRevealedImages] = useState<Record<number, boolean>>({});
   const [isCheckingNsfw, setIsCheckingNsfw] = useState<Record<number, boolean>>({});
-  const checkedImagesRef = useRef<Set<number>>(new Set());
+  
+  // Track files using unique identifiers instead of indices
+  const checkedImagesRef = useRef<Set<string>>(new Set());
   
   const licenseOptions = [
     { value: "mit", label: "MIT" },
@@ -78,10 +77,17 @@ export default function LicenseImagesStep({
     { value: "custom", label: "Custom License" },
   ];
   
+  // Generate a unique identifier for a file
+  const getFileId = (file: File): string => {
+    return `${file.name}-${file.size}-${file.lastModified}`;
+  };
+  
   // Function to check an image for NSFW content using the ElysiaJS API
   const checkImageForNsfw = useCallback(async (imageFile: File, index: number) => {
-    // Skip if already checking or already checked
-    if (isCheckingNsfw[index] || checkedImagesRef.current.has(index)) {
+    const fileId = getFileId(imageFile);
+    
+    // Skip if already checking or already checked this specific file
+    if (isCheckingNsfw[index] || checkedImagesRef.current.has(fileId)) {
       return;
     }
     
@@ -89,7 +95,7 @@ export default function LicenseImagesStep({
     setIsCheckingNsfw(prev => ({ ...prev, [index]: true }));
     
     try {
-      console.log(`Checking image ${index} for NSFW content via API...`);
+      console.log(`Checking image ${index} (${fileId}) for NSFW content via API...`);
       
       // Prepare form data for upload
       const formData = new FormData();
@@ -116,7 +122,7 @@ export default function LicenseImagesStep({
       const nsfwScore = result.nsfwScore;
       const isNsfw = nsfwScore > 0.6; // Threshold for NSFW content
       
-      console.log(`Image ${index} NSFW score: ${nsfwScore.toFixed(2)}, Flagged: ${isNsfw}`);
+      console.log(`Image ${index} (${fileId}) NSFW score: ${nsfwScore.toFixed(2)}, Flagged: ${isNsfw}`);
       
       // Update NSFW status
       setNsfwStatus(prev => ({
@@ -124,11 +130,11 @@ export default function LicenseImagesStep({
         [index]: isNsfw
       }));
       
-      // Mark as checked
-      checkedImagesRef.current.add(index);
+      // Mark this specific file as checked
+      checkedImagesRef.current.add(fileId);
       
     } catch (error) {
-      console.error(`Failed to check image ${index} for NSFW content:`, error);
+      console.error(`Failed to check image ${index} (${fileId}) for NSFW content:`, error);
       toast.error(`Failed to check image ${index + 1} for sensitive content`);
       
       // Default to not NSFW on error
@@ -138,18 +144,19 @@ export default function LicenseImagesStep({
       }));
       
       // Still mark as checked to avoid continuous retries
-      checkedImagesRef.current.add(index);
+      checkedImagesRef.current.add(fileId);
     } finally {
       // Clear checking status
       setIsCheckingNsfw(prev => ({ ...prev, [index]: false }));
     }
   }, [isCheckingNsfw, setNsfwStatus]);
   
-  // Check images when they're added
+  // Check images when they're added or changed
   useEffect(() => {
     previewImages.forEach((image, index) => {
-      // Only check if not already checked or checking
-      if (!checkedImagesRef.current.has(index) && !isCheckingNsfw[index]) {
+      const fileId = getFileId(image.file);
+      // Only check if not already checked or checking this specific file
+      if (!checkedImagesRef.current.has(fileId) && !isCheckingNsfw[index]) {
         checkImageForNsfw(image.file, index);
       }
     });
