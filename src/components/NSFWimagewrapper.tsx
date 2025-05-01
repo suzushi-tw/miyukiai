@@ -14,7 +14,7 @@ interface NsfwImageWrapperProps {
   fill?: boolean;
   sizes?: string;
   priority?: boolean;
-  onClick?: () => void;
+  onClick?: () => void; // Make it optional
 }
 
 export default function NsfwImageWrapper({
@@ -35,6 +35,9 @@ export default function NsfwImageWrapper({
     setRevealed(true);
   };
   
+  // Handle image click when onClick is provided
+  const handleImageClick = onClick ? onClick : undefined;
+  
   return (
     <div className="relative h-full w-full">
       <Image
@@ -44,7 +47,7 @@ export default function NsfwImageWrapper({
         className={`${className} ${isNsfw && !revealed ? 'blur-xl' : ''}`}
         sizes={sizes}
         priority={priority}
-        onClick={onClick}
+        onClick={handleImageClick} // Only pass onClick if it's defined
       />
       
       {isNsfw && !revealed && (

@@ -167,7 +167,7 @@ export default async function Page({
                             className="object-cover transition-transform duration-300 group-hover:scale-105"
                             sizes="(max-width: 768px) 240px, 288px"
                             priority={false}
-                            onClick={() => { }} // Empty function since the DialogTrigger handles click
+                        
                           />
                         </div>
                       </DialogTrigger>
