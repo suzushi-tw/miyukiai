@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Image as ImageIcon, X, Info, AlertCircle } from "lucide-react";
-import * as nsfwjs from 'nsfwjs';
+import { Image as ImageIcon, X, Info, AlertCircle, Loader2 } from "lucide-react";
+import { RawImage } from "@huggingface/transformers";
 
 import {
   FormControl,
@@ -29,24 +29,42 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
-import { LicenseImagesStepProps } from "../lib/types";
 import { ComfyMetadata } from "@/utils/getimgmetadata";
+
+export interface LicenseImagesStepProps {
+  form: any;
+  previewImages: { file: File; preview: string; metadata?: ComfyMetadata }[];
+  previewInputRef: React.RefObject<HTMLInputElement>;
+  handlePreviewUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  removePreviewImage: (index: number) => void;
+  setNsfwStatus: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
+  nsfwStatus: Record<number, boolean>;
+  // New props passed from parent
+  nsfwClassifier: any;
+  isModelLoading: boolean;
+  deviceType: string;
+  modelLoadError: string | null;
+}
 
 export default function LicenseImagesStep({
   form,
   previewImages,
   previewInputRef,
   handlePreviewUpload,
-  removePreviewImage
+  removePreviewImage,
+  setNsfwStatus,
+  nsfwStatus,
+  // Receive props from parent
+  nsfwClassifier,
+  isModelLoading,
+  deviceType,
+  modelLoadError
 }: LicenseImagesStepProps) {
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
   const [selectedMetadata, setSelectedMetadata] = useState<ComfyMetadata | null>(null);
-  // New states for NSFW detection
-  const [nsfwModel, setNsfwModel] = useState<any>(null);
-  const [isModelLoading, setIsModelLoading] = useState(false);
-  const [nsfwStatus, setNsfwStatus] = useState<Record<number, boolean>>({});
   const [revealedImages, setRevealedImages] = useState<Record<number, boolean>>({});
+  
+  // No need to initialize the classifier here since we're receiving it as a prop
   
   const licenseOptions = [
     { value: "mit", label: "MIT" },
@@ -57,63 +75,74 @@ export default function LicenseImagesStep({
     { value: "custom", label: "Custom License" },
   ];
   
-  // Load NSFW detection model
-  useEffect(() => {
-    async function loadNsfwModel() {
-      if (!nsfwModel && !isModelLoading) {
-        setIsModelLoading(true);
-        try {
-          const loadedModel = await nsfwjs.load();
-          setNsfwModel(loadedModel);
-          console.log("NSFW detection model loaded");
-        } catch (error) {
-          console.error("Failed to load NSFW detection model:", error);
-        } finally {
-          setIsModelLoading(false);
-        }
-      }
-    }
-    
-    loadNsfwModel();
-  }, [nsfwModel, isModelLoading]);
-
-  // Function to check if image is NSFW
+  // Simplified image classification function - uses the passed in classifier
   const checkImageForNsfw = useCallback(async (imageUrl: string, index: number) => {
-    if (!nsfwModel) return;
+    if (!nsfwClassifier) return;
     
     try {
-      // Use the browser's HTMLImageElement, not the Next.js Image component
+      console.log(`Starting classification for image ${index}...`);
+      
+      // Create an image element
       const img = new window.Image();
       img.crossOrigin = 'anonymous';
       img.src = imageUrl;
       
-      img.onload = async () => {
-        // Classify the image
-        const predictions = await nsfwModel.classify(img);
-        
-        // Check for NSFW content
-        const pornPrediction = predictions.find((p: any) => p.className === 'Porn');
-        const hentaiPrediction = predictions.find((p: any) => p.className === 'Hentai');
-        
-        const pornProb = pornPrediction ? pornPrediction.probability : 0;
-        const hentaiProb = hentaiPrediction ? hentaiPrediction.probability : 0;
-        
-        // Set NSFW status if either category has high probability
-        const isNsfw = pornProb > 0.6 || hentaiProb > 0.6;
-        
-        setNsfwStatus(prev => ({
-          ...prev,
-          [index]: isNsfw
-        }));
-      };
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+      
+      // Create a canvas to get the image data
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        console.error("Couldn't get canvas context");
+        return;
+      }
+      
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      
+      // Convert to blob
+      const blob = await new Promise<Blob>((resolve) => 
+        canvas.toBlob(blob => resolve(blob!), "image/jpeg")
+      );
+      
+      console.log(`Image ${index} converted to blob, creating RawImage...`);
+      
+      // Create a RawImage from the blob
+      const rawImage = await RawImage.fromBlob(blob);
+      
+      console.log(`Running classification for image ${index}...`);
+      
+      // Run classification
+      const results = await nsfwClassifier(rawImage);
+      
+      // Extract scores
+      const nsfwScore = results.find((r: any) => r.label === "nsfw")?.score || 0;
+      const sfwScore = results.find((r: any) => r.label === "sfw")?.score || 0;
+      
+      // Normalize the NSFW score (same as in Vue example)
+      const normalizedNsfwScore = nsfwScore / (nsfwScore + sfwScore);
+      
+      // Mark as NSFW if score > 60%
+      const isNsfw = normalizedNsfwScore > 0.6;
+      
+      console.log(`Image ${index} NSFW score: ${(normalizedNsfwScore * 100).toFixed(1)}%`);
+      
+      setNsfwStatus(prev => ({
+        ...prev,
+        [index]: isNsfw
+      }));
     } catch (error) {
-      console.error("Failed to classify image:", error);
+      console.error(`Failed to classify image ${index}:`, error);
     }
-  }, [nsfwModel]);
+  }, [nsfwClassifier, setNsfwStatus]);
   
   // Check images when they're added or when model is loaded
   useEffect(() => {
-    if (nsfwModel && previewImages.length > 0) {
+    if (nsfwClassifier && previewImages.length > 0) {
       previewImages.forEach((image, index) => {
         // Only check images that haven't been classified yet
         if (nsfwStatus[index] === undefined) {
@@ -121,7 +150,7 @@ export default function LicenseImagesStep({
         }
       });
     }
-  }, [nsfwModel, previewImages, nsfwStatus, checkImageForNsfw]);
+  }, [nsfwClassifier, previewImages, nsfwStatus, checkImageForNsfw]);
   
   const showMetadata = (index: number) => {
     const metadata = previewImages[index].metadata;
@@ -139,7 +168,6 @@ export default function LicenseImagesStep({
     }));
   };
 
-
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -147,6 +175,20 @@ export default function LicenseImagesStep({
         <p className="text-muted-foreground">
           Add license information and preview images for your model
         </p>
+        
+        {/* Add non-blocking loading indicator with device info */}
+        {isModelLoading && (
+          <div className="flex items-center text-xs text-amber-600 mt-2">
+            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            <span>Loading content detection model on {deviceType} in background...</span>
+          </div>
+        )}
+        
+        {modelLoadError && (
+          <p className="text-xs text-red-500 mt-1">
+            Note: Content detection couldn&apos;t load ({modelLoadError}). You can still continue.
+          </p>
+        )}
       </div>
       
       <Card>
@@ -266,11 +308,8 @@ export default function LicenseImagesStep({
         <FormDescription>
           Upload sample images created with your model (max 5 images)
         </FormDescription>
-        {isModelLoading && (
-          <p className="text-xs text-muted-foreground">Loading content detection model...</p>
-        )}
       </div>
-
+      
       {/* Fixed Metadata Dialog */}
       <Dialog open={metadataDialogOpen} onOpenChange={setMetadataDialogOpen}>
         <DialogContent className="sm:max-w-[800px] md:max-w-[900px] lg:max-w-[1000px] p-0">

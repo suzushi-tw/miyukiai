@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Upload, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+// Add the pipeline import
+import { pipeline } from "@huggingface/transformers";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -63,8 +65,6 @@ const uploadImageDirectly = async (file: File): Promise<string> => {
     }
 };
 
-
-
 export default function UploadModelPage() {
     const router = useRouter();
     const [currentStep, setCurrentStep] = useState(1);
@@ -73,6 +73,13 @@ export default function UploadModelPage() {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
     const [id, setid] = useState("");
+    const [nsfwStatus, setNsfwStatus] = useState<Record<number, boolean>>({});
+
+    // Add NSFW model states
+    const [nsfwClassifier, setNsfwClassifier] = useState<any>(null);
+    const [isModelLoading, setIsModelLoading] = useState(false);
+    const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+    const [deviceType, setDeviceType] = useState<string>("wasm");
 
     const [incompleteUploads, setIncompleteUploads] = useState<{
         id: string;
@@ -83,6 +90,57 @@ export default function UploadModelPage() {
     const [resumingUpload, setResumingUpload] = useState(false);
     const previewInputRef = useRef<HTMLInputElement>(null);
     const modelInputRef = useRef<HTMLInputElement>(null);
+
+    // Add effect to load NSFW model immediately when page loads
+    useEffect(() => {
+        let isMounted = true;
+        
+        async function loadNsfwModel() {
+            if (!nsfwClassifier && !isModelLoading) {
+                try {
+                    setIsModelLoading(true);
+                    console.log("Starting HuggingFace NSFW model load...");
+                    
+                    // Use WebAssembly (CPU) as it's most widely compatible
+                    const device = "wasm";
+                    setDeviceType(device);
+                    
+                    console.log(`Loading NSFW classifier with device: ${device}`);
+                    
+                    // Use the smallest quantized model for faster loading
+                    const classifier = await pipeline(
+                        "image-classification", 
+                        "AdamCodd/vit-base-nsfw-detector", 
+                        {
+                            device,
+                            revision: "main",
+                            dtype: 'q4',
+                        }
+                    );
+                    
+                    if (isMounted) {
+                        console.log("✅ NSFW detection model loaded successfully");
+                        setNsfwClassifier(classifier);
+                    }
+                } catch (error) {
+                    console.error("❌ Failed to load NSFW detection model:", error);
+                    if (isMounted) {
+                        setModelLoadError(error instanceof Error ? error.message : "Unknown error loading model");
+                    }
+                } finally {
+                    if (isMounted) {
+                        setIsModelLoading(false);
+                    }
+                }
+            }
+        }
+        
+        loadNsfwModel();
+        
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     // Check for incomplete uploads when component mounts
     useEffect(() => {
@@ -98,7 +156,6 @@ export default function UploadModelPage() {
         checkIncompleteUploads();
     }, []);
 
-
     // Initialize form
     const form = useForm<ModelFormSchema>({
         resolver: zodResolver(modelFormSchema),
@@ -110,8 +167,14 @@ export default function UploadModelPage() {
             baseModel: "sd15",
             license: "",
             tags: "",
+            triggerWords: "", // Make sure this field is initialized if used in your schema
         },
     });
+
+    // Optimized step navigation
+    const navigateToStep = useCallback((step: number) => {
+        setCurrentStep(step);
+    }, []);
 
     const saveBasicInfo = async () => {
         try {
@@ -126,11 +189,12 @@ export default function UploadModelPage() {
 
             // Upload preview images if we have any
             const uploadedImageUrls = await Promise.all(
-                previewImages.map(async (image) => {
+                previewImages.map(async (image, index) => {
                     const imageUrl = await uploadImageDirectly(image.file);
                     return {
                         url: imageUrl,
                         metadata: image.metadata || {},
+                        isNsfw: nsfwStatus[index] || false, // Include NSFW status
                     };
                 })
             );
@@ -168,9 +232,7 @@ export default function UploadModelPage() {
             }
 
             toast.success("Basic information saved!");
-
-
-            setCurrentStep(3);
+            navigateToStep(3);
         } catch (error) {
             console.error("Error saving information:", error);
             toast.error(`Failed to save information: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -178,7 +240,6 @@ export default function UploadModelPage() {
             setIsUploading(false);
         }
     };
-
 
     const uploadModelFile = async () => {
         if (!modelFile) {
@@ -194,7 +255,6 @@ export default function UploadModelPage() {
             const uploadedModelUrl = await uploadLargeFileToS3(modelFile, (progress) => {
                 setUploadProgress(progress);
             });
-
 
             const response = await fetch('/api/updatemodel', {
                 method: 'POST',
@@ -220,7 +280,6 @@ export default function UploadModelPage() {
         }
     };
 
-
     const onSubmit = async (formData: ModelFormSchema) => {
         if (currentStep === 1) {
             // Basic validation before proceeding
@@ -228,7 +287,7 @@ export default function UploadModelPage() {
                 toast.error("Please fill in all required fields");
                 return;
             }
-            setCurrentStep(2);
+            navigateToStep(2);
         } else if (currentStep === 2) {
             await saveBasicInfo();
         } else if (currentStep === 3) {
@@ -282,6 +341,11 @@ export default function UploadModelPage() {
         URL.revokeObjectURL(updatedImages[index].preview);
         updatedImages.splice(index, 1);
         setPreviewImages(updatedImages);
+
+        // Also remove the NSFW status for this image
+        const updatedNsfwStatus = { ...nsfwStatus };
+        delete updatedNsfwStatus[index];
+        setNsfwStatus(updatedNsfwStatus);
     };
 
     // ------- Resume Upload Logic -------
@@ -366,6 +430,13 @@ export default function UploadModelPage() {
                         previewInputRef={previewInputRef as React.RefObject<HTMLInputElement>}
                         handlePreviewUpload={handlePreviewUpload}
                         removePreviewImage={removePreviewImage}
+                        nsfwStatus={nsfwStatus}
+                        setNsfwStatus={setNsfwStatus}
+                        // Add these new props
+                        nsfwClassifier={nsfwClassifier}
+                        isModelLoading={isModelLoading}
+                        deviceType={deviceType}
+                        modelLoadError={modelLoadError}
                     />
                 );
 
@@ -464,7 +535,7 @@ export default function UploadModelPage() {
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={() => setCurrentStep(currentStep - 1)}
+                                        onClick={() => navigateToStep(currentStep - 1)}
                                         disabled={isUploading || resumingUpload}
                                     >
                                         <ArrowLeft className="mr-2 h-4 w-4" />

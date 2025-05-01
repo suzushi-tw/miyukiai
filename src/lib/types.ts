@@ -18,14 +18,14 @@ export interface LicenseImagesStepProps {
   removePreviewImage: (index: number) => void;
 }
 
-export interface ModelUploadStepProps {
+export interface LicenseImagesStepProps {
   form: UseFormReturn<ModelFormSchema>;
-  modelFile: File | null;
-  modelInputRef: RefObject<HTMLInputElement>;
-  isUploading: boolean;
-  uploadProgress: number;
-  handleModelUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  previewImages: PreviewImageType[];
+  previewImages: Array<{ file: File; preview: string; metadata?: ComfyMetadata }>;
+  previewInputRef: React.RefObject<HTMLInputElement>;
+  handlePreviewUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  removePreviewImage: (index: number) => void;
+  nsfwStatus: Record<number, boolean>; // Add this
+  setNsfwStatus: React.Dispatch<React.SetStateAction<Record<number, boolean>>>; // Add this
 }
 
 export interface BasicInfoStepProps {

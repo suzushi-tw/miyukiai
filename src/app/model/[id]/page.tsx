@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dialog"
 import { PromptWithCopy } from "@/components/promptwithcopy";
 import { ShareButton } from "@/components/Sharebutton";
+import NsfwImageWrapper from "@/components/NSFWimagewrapper";
 
 function formatBytes(bytes: bigint, decimals = 2) {
   if (bytes === BigInt(0)) return "0 Bytes";
@@ -76,6 +77,7 @@ interface GalleryImage {
   url: string;
   metadata: ComfyMetadata | null;
   createdAt: Date;
+  isNsfw: boolean
 }
 
 export default async function Page({
@@ -94,6 +96,7 @@ export default async function Page({
           id: true,
           url: true,
           metadata: true,
+          isNsfw: true,
           createdAt: true,
         },
       },
@@ -157,13 +160,14 @@ export default async function Page({
                           role="button"
                           tabIndex={0}
                         >
-                          <Image
-                            src={image.url}
-                            fill
-                            alt={image.id}
+                          <NsfwImageWrapper
+                            imageUrl={image.url}
+                            imageId={image.id}
+                            isNsfw={image.isNsfw || false}
                             className="object-cover transition-transform duration-300 group-hover:scale-105"
                             sizes="(max-width: 768px) 240px, 288px"
                             priority={false}
+                            onClick={() => { }} // Empty function since the DialogTrigger handles click
                           />
                         </div>
                       </DialogTrigger>
@@ -178,11 +182,12 @@ export default async function Page({
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4 overflow-hidden">
                           {/* Image Preview */}
                           <div className="lg:col-span-2 relative rounded-md overflow-hidden" style={{ minHeight: "400px" }}>
-                            <Image
-                              src={image.url}
-                              fill
-                              alt={model.name || "Model image"}
+                            <NsfwImageWrapper
+                              imageUrl={image.url}
+                              imageId={image.id}
+                              isNsfw={image.isNsfw || false}
                               className="object-contain"
+                              alt={model.name || "Model image"}
                             />
                           </div>
 
