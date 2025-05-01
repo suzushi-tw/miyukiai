@@ -22,6 +22,12 @@ export interface ApiModel {
     };
 }
 
+export interface ModelImage {
+    id: string;
+    url: string;
+    isNsfw?: boolean;
+}
+
 export interface TransformedModel {
     id: string;
     name: string;
@@ -30,12 +36,16 @@ export interface TransformedModel {
     modelType: string;
     baseModel: string;
     tags: string | null;
-    downloads: number;
+    license?: string;
+    fileUrl?: string;
+    fileName?: string;
     fileSize: bigint;
+    downloads: number;
     createdAt: Date;
-    images: { url: string }[];
+    updatedAt?: Date;
+    images: ModelImage[];
     user: {
-        id: string;    // Make sure this matches the User interface in ModelCard
+        id: string;
         name: string;
         image: string | null;
     };

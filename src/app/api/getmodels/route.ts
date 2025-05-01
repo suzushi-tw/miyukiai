@@ -48,7 +48,12 @@ export async function GET(req: Request) {
           }
         },
         images: {
-          take: 1
+          take: 1,
+          select: {
+            id: true,
+            url: true,
+            isNsfw: true // Include the NSFW flag
+          }
         }
       }
     });
@@ -75,7 +80,8 @@ export async function GET(req: Request) {
       user: model.user,
       images: model.images.map(img => ({
         id: img.id,
-        url: img.url
+        url: img.url,
+        isNsfw: img.isNsfw || false // Include NSFW status with a default value
       })),
       createdAt: model.createdAt,
       updatedAt: model.updatedAt
