@@ -30,6 +30,7 @@ export async function GET(request: Request) {
           select: {
             id: true,
             url: true,
+            isNsfw: true
           },
         },
       },
