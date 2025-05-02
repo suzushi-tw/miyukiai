@@ -47,6 +47,7 @@ import { PromptWithCopy } from "@/components/promptwithcopy";
 import { ShareButton } from "@/components/Sharebutton";
 import NsfwImageWrapper from "@/components/NSFWimagewrapper";
 import { DownloadButton } from "@/components/Download";
+import { HoverCard, HoverCardTrigger, HoverCardContent  } from "@/components/ui/hover-card";
 
 function formatBytes(bytes: bigint, decimals = 2) {
   if (bytes === BigInt(0)) return "0 Bytes";
@@ -375,7 +376,17 @@ export default async function Page({
               <ShareButton modelId={id} />
 
               <p className="text-center text-sm text-muted-foreground mt-3">
-                {formattedFileSize} • {model.fileName}
+                {formattedFileSize} •
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <span className="truncate inline-block max-w-[200px] align-bottom overflow-hidden text-ellipsis">
+                      {model.fileName}
+                    </span>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-auto p-2">
+                    <p className="text-sm">{model.fileName}</p>
+                  </HoverCardContent>
+                </HoverCard>
               </p>
             </CardContent>
           </Card>
