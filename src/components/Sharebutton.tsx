@@ -25,7 +25,7 @@ export function ShareButton({ modelId }: ShareButtonProps) {
     <Button
       variant="outline"
       size="lg"
-      className="w-full pt-3"
+      className="w-full"
       onClick={handleCopyLink}
     >
       {isCopied ? (

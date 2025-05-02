@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         cursor: cursorObj,
         skip: 1, // Skip the cursor
       };
-      
+
       // Execute the query with cursor
       const images = await db.modelImage.findMany(queryWithCursor);
       return processImages(images, limit);
@@ -76,11 +76,10 @@ function processImages(images: any[], limit: number) {
     nextCursor = nextItem?.id;
   }
 
-  // Format and sanitize the data with safer property access
   const sanitizedImages = images.map(image => {
     const modelData = 'model' in image ? image.model : null;
     const userData = 'user' in image ? image.user : null;
-    
+
     return {
       id: image.id,
       url: image.url,
@@ -96,6 +95,7 @@ function processImages(images: any[], limit: number) {
         image: userData?.image || null
       },
       metadata: image.metadata || null,
+      isNsfw: image.isNsfw || false, // Add this line
       createdAt: image.createdAt.toISOString(),
     };
   });

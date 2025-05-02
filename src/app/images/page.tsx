@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { PromptWithCopy } from "@/components/promptwithcopy";
 import Link from "next/link";
+import NsfwImageWrapper from "@/components/NSFWimagewrapper";
 
 interface ImageMetadata {
   prompt?: string;
@@ -50,6 +51,7 @@ interface Image {
   };
   metadata: ImageMetadata | null;
   createdAt: string;
+  isNsfw?: boolean;
 }
 
 // Function to fetch images from API
@@ -179,15 +181,13 @@ export default function ImagesGalleryPage() {
                   <Card className="overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1">
                     <div className="aspect-square bg-muted relative overflow-hidden">
                       <div className="aspect-square bg-muted relative overflow-hidden">
-                        <Image
-                          src={image.url}
-                          alt={image.model?.name || "Generated image"}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                        <NsfwImageWrapper
+                          imageUrl={image.url}
+                          imageId={image.id}
+                          isNsfw={image.isNsfw || false}
                           className="object-cover"
-                          loading="lazy"
-                          placeholder="blur"
-                          blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                          priority={false}
                         />
                       </div>
 
@@ -233,13 +233,12 @@ export default function ImagesGalleryPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Image Preview */}
                     <div className="bg-muted rounded-md overflow-hidden relative" style={{ height: '400px' }}>
-                      <Image
-                        src={image.url}
-                        alt={image.model?.name || "Generated image"}
-                        fill
+                      <NsfwImageWrapper
+                        imageUrl={image.url}
+                        imageId={image.id}
+                        isNsfw={image.isNsfw || false}
                         className="object-contain"
-                        placeholder="blur"
-                        blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
 
