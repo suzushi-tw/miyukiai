@@ -87,6 +87,14 @@ export async function GET(req: Request) {
       updatedAt: model.updatedAt
     }));
 
+    console.log("Model images with NSFW status:", models.map(m => ({
+      id: m.id,
+      images: m.images.map(img => ({
+        id: img.id, 
+        isNsfw: img.isNsfw
+      }))
+    })));
+
     return NextResponse.json({ 
       models: transformedModels, 
       nextCursor 
