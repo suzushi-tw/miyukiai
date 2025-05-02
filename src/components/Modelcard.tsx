@@ -13,9 +13,10 @@ interface ModelCardProps {
 }
 
 export default function ModelCard({ model }: ModelCardProps) {
- 
+
   const imageId = model.images?.[0]?.id || model.id;
   const isNsfw = model.images?.[0]?.isNsfw || false;
+  console.log(imageId + " is NSFW: " + isNsfw)
   // Format the file size
   const formatFileSize = (bytes: bigint) => {
     if (bytes === BigInt(0)) return '0 bytes'; // Handle zero case
