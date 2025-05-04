@@ -47,7 +47,8 @@ import { PromptWithCopy } from "@/components/promptwithcopy";
 import { ShareButton } from "@/components/Sharebutton";
 import NsfwImageWrapper from "@/components/NSFWimagewrapper";
 import { DownloadButton } from "@/components/Download";
-import { HoverCard, HoverCardTrigger, HoverCardContent  } from "@/components/ui/hover-card";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
+import { TriggerWords } from "@/components/Triggerwords";
 
 function formatBytes(bytes: bigint, decimals = 2) {
   if (bytes === BigInt(0)) return "0 Bytes";
@@ -446,6 +447,10 @@ export default async function Page({
               )}
             </CardContent>
           </Card>
+
+          {model.triggerWords && (
+            <TriggerWords triggerWords={model.triggerWords} />
+          )}
 
           {tags.length > 0 && (
             <Card>
