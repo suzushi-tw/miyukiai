@@ -58,15 +58,15 @@ interface Image {
 // Function to fetch images from API with improved cursor handling
 const fetchImages = async ({ pageParam = 1 }) => {
   const params = new URLSearchParams();
-  
+
   // Handle cursor properly - if pageParam is not the initial value, use it as cursor
   if (pageParam !== 1) {
     // Convert pageParam to string to satisfy TypeScript
     params.append("cursor", String(pageParam));
   }
-  
+
   console.log(`Fetching images with params: ${params.toString()}`);
-  
+
   const response = await fetch(`/api/getimages?${params.toString()}`);
 
   if (!response.ok) {
@@ -75,7 +75,7 @@ const fetchImages = async ({ pageParam = 1 }) => {
 
   const data = await response.json();
   console.log(`Received ${data.images.length} images, nextCursor: ${data.nextCursor}`);
-  
+
   return {
     images: data.images,
     nextPage: data.nextCursor
@@ -235,8 +235,208 @@ export default function ImagesGalleryPage() {
                     </CardFooter>
                   </Card>
                 </DialogTrigger>
-                {/* Rest of your dialog content remains the same... */}
-                {/* ... */}
+                <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Image Preview */}
+                    <div className="bg-muted rounded-md overflow-hidden relative" style={{ height: '400px' }}>
+                      <NsfwImageWrapper
+                        imageUrl={image.url}
+                        imageId={image.id}
+                        isNsfw={image.isNsfw || false}
+                        className="object-contain"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    </div>
+
+                    {/* Metadata and Details */}
+                    <div className="space-y-4 overflow-y-auto pr-2 max-h-[80vh]">
+                      {/* <div>
+                        <h3 className="text-lg font-semibold">Image Details</h3>
+                        <p className="text-sm text-muted-foreground">Generated with {image.model?.name}</p>
+                      </div> */}
+                      <Card className="border-none shadow-sm bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-primary/10 p-2 rounded-full">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                                <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+                                <path d="M7 7h.01" />
+                              </svg>
+                            </div>
+                            <div className="flex-grow">
+                              <p className="text-xs text-muted-foreground font-medium">Generated with</p>
+                              <h4 className="text-base font-medium">{image.model?.name || "Unknown Model"}</h4>
+                            </div>
+                            {image.model?.id && (
+                              <Button variant="secondary" size="sm" className="h-8" asChild>
+                                <Link href={`/model/${image.model.id}`}>
+                                  View Model
+                                </Link>
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Avatar>
+                            <AvatarImage src={image.user?.image || undefined} />
+                            <AvatarFallback>{image.user?.name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{image.user?.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(image.createdAt)}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Prompts */}
+                      {(image.metadata?.prompt || image.metadata?.negativePrompt) && (
+                        <Card>
+                          <CardHeader className="py-3">
+                            <CardTitle className="text-sm font-medium">Prompts</CardTitle>
+                          </CardHeader>
+                          <CardContent className="py-2 space-y-3">
+                            {image.metadata?.prompt && (
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                  <p className="text-xs text-muted-foreground font-medium">Positive</p>
+                                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => navigator.clipboard.writeText(image.metadata?.prompt || '')}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                    </svg>
+                                    <span className="sr-only">Copy</span>
+                                  </Button>
+                                </div>
+                                <div className="bg-muted p-2 rounded-md text-xs">
+                                  {image.metadata.prompt}
+                                </div>
+                              </div>
+                            )}
+                            {image.metadata?.positivePrompt && (
+                              <PromptWithCopy label="Positive" text={image.metadata.positivePrompt} />
+                            )}
+                            {image.metadata?.negativePrompt && (
+                              <PromptWithCopy label="Negative" text={image.metadata.negativePrompt} />
+                            )}
+
+
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Image Information */}
+                      {(image.metadata?.width || image.metadata?.height || image.metadata?.bitDepth || image.metadata?.colorType) && (
+                        <Card>
+                          <CardHeader className="py-3">
+                            <CardTitle className="text-sm font-medium">Image Information</CardTitle>
+                          </CardHeader>
+                          <CardContent className="py-2">
+                            <dl className="space-y-2 text-sm">
+                              {image.metadata?.width && image.metadata?.height && (
+                                <div className="flex justify-between">
+                                  <dt className="text-muted-foreground">Dimensions:</dt>
+                                  <dd>{image.metadata.width} × {image.metadata.height}</dd>
+                                </div>
+                              )}
+                              {image.metadata?.bitDepth && (
+                                <div className="flex justify-between">
+                                  <dt className="text-muted-foreground">Bit Depth:</dt>
+                                  <dd>{image.metadata.bitDepth}-bit</dd>
+                                </div>
+                              )}
+                              {image.metadata?.colorType && (
+                                <div className="flex justify-between">
+                                  <dt className="text-muted-foreground">Color Type:</dt>
+                                  <dd>{image.metadata.colorType}</dd>
+                                </div>
+                              )}
+                              <div className="flex justify-between">
+                                <dt className="text-muted-foreground">Created:</dt>
+                                <dd>{formatDate(image.createdAt)}</dd>
+                              </div>
+                            </dl>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Generation Parameters */}
+                      {(image.metadata?.model || image.metadata?.seed || image.metadata?.steps || image.metadata?.cfg ||
+                        image.metadata?.sampler || image.metadata?.scheduler || image.metadata?.denoise) && (
+                          <Card>
+                            <CardHeader className="py-3">
+                              <CardTitle className="text-sm font-medium">Generation Parameters</CardTitle>
+                            </CardHeader>
+                            <CardContent className="py-2">
+                              <dl className="space-y-2 text-sm">
+                                {image.metadata?.model && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">Model:</dt>
+                                    <dd className="max-w-[180px] text-right">{image.metadata.model}</dd>
+                                  </div>
+                                )}
+                                {image.metadata?.seed !== undefined && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">Seed:</dt>
+                                    <dd>{image.metadata.seed}</dd>
+                                  </div>
+                                )}
+                                {image.metadata?.steps !== undefined && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">Steps:</dt>
+                                    <dd>{image.metadata.steps}</dd>
+                                  </div>
+                                )}
+                                {image.metadata?.cfg !== undefined && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">CFG Scale:</dt>
+                                    <dd>{image.metadata.cfg}</dd>
+                                  </div>
+                                )}
+                                {image.metadata?.sampler && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">Sampler:</dt>
+                                    <dd>{image.metadata.sampler}</dd>
+                                  </div>
+                                )}
+                                {image.metadata?.scheduler && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">Scheduler:</dt>
+                                    <dd>{image.metadata.scheduler}</dd>
+                                  </div>
+                                )}
+                                {image.metadata?.denoise !== undefined && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">Denoise:</dt>
+                                    <dd>{image.metadata.denoise}</dd>
+                                  </div>
+                                )}
+                                {image.metadata?.parameters && Object.entries(image.metadata.parameters).map(([key, value]) => (
+                                  <div key={key} className="flex justify-between">
+                                    <dt className="text-muted-foreground">{key}:</dt>
+                                    <dd>{String(value)}</dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleDownload(image.url, `image-${image.id}.jpg`)}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </DialogContent>
               </Dialog>
             ))
           ))}
