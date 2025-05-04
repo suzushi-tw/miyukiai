@@ -16,6 +16,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get("cursor");
     const limit = 20; // Number of images per page
+    
+    console.log("API: Received request for images with cursor:", cursor);
 
     // Build the query with explicit typing
     const query = {
@@ -46,13 +48,15 @@ export async function GET(request: Request) {
       const queryWithCursor = {
         ...query,
         cursor: cursorObj,
-        skip: 1, // Skip the cursor
+        skip: 1, // Skip the cursor item itself
       };
 
+      console.log(`API: Executing query with cursor: ${cursor}`);
       // Execute the query with cursor
       const images = await db.modelImage.findMany(queryWithCursor);
       return processImages(images, limit);
     } else {
+      console.log("API: Executing initial query without cursor");
       // Execute the query without cursor
       const images = await db.modelImage.findMany(query);
       return processImages(images, limit);
@@ -75,6 +79,8 @@ function processImages(images: any[], limit: number) {
     const nextItem = images.pop(); // Remove the extra item
     nextCursor = nextItem?.id;
   }
+  
+  console.log(`API: Processing ${images.length} images, nextCursor: ${nextCursor}`);
 
   const sanitizedImages = images.map(image => {
     const modelData = 'model' in image ? image.model : null;
@@ -95,7 +101,7 @@ function processImages(images: any[], limit: number) {
         image: userData?.image || null
       },
       metadata: image.metadata || null,
-      isNsfw: image.isNsfw || false, // Add this line
+      isNsfw: image.isNsfw === true, // Explicitly convert to boolean
       createdAt: image.createdAt.toISOString(),
     };
   });
