@@ -1,11 +1,10 @@
-// File hash worker using SparkMD5
-self.importScripts('https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js');
+self.importScripts('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js');
 
 self.onmessage = async (e) => {
   const { file } = e.data;
   const chunkSize = 2 * 1024 * 1024; // 2MB chunks
   const chunks = Math.ceil(file.size / chunkSize);
-  const spark = new SparkMD5.ArrayBuffer();
+  let sha256 = CryptoJS.algo.SHA256.create();
   
   let currentChunk = 0;
   
@@ -14,9 +13,11 @@ self.onmessage = async (e) => {
     
     return new Promise((resolve, reject) => {
       fileReader.onload = (e) => {
-        spark.append(e.target.result);
-        currentChunk++;
+        // Convert ArrayBuffer to WordArray that CryptoJS can use
+        const wordArray = CryptoJS.lib.WordArray.create(e.target.result);
+        sha256.update(wordArray);
         
+        currentChunk++;
         const progress = Math.round((currentChunk / chunks) * 100);
         self.postMessage({ type: 'progress', progress });
         
@@ -38,7 +39,7 @@ self.onmessage = async (e) => {
     }
     
     // Get the final hash
-    const hash = spark.end();
+    const hash = sha256.finalize().toString();
     self.postMessage({ type: 'complete', hash });
   } catch (error) {
     self.postMessage({ type: 'error', message: error.message });
