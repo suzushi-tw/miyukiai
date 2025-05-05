@@ -53,26 +53,28 @@ model user {
 }
 
 model Model {
-  id           String        @id @default(cuid())
+  id           String       @id @default(cuid())
   name         String
-  description  String?       @db.Text
-  version      String        @default("1.0")
+  description  String?      @db.Text
+  version      String       @default("1.0")
   modelType    String
   baseModel    String
   tags         String?
-   triggerWords String?   @default("")
+  triggerWords String?      @default("")
   license      String?
   userId       String
-  user         user          @relation(fields: [userId], references: [id])
+  user         user         @relation(fields: [userId], references: [id])
   fileUrl      String
+  fileHash     String?      // Added field to store file hash for deduplication
   fileSize     BigInt
   fileName     String
-  downloads    Int           @default(0)
+  downloads    Int          @default(0)
   images       ModelImage[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@index([userId])
+  @@index([fileHash])       // Added index for better query performance when checking duplicates
 }
 
 model ModelImage {

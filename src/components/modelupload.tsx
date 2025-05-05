@@ -1,4 +1,4 @@
-import { CheckCircle2, Upload, X } from "lucide-react";
+import { CheckCircle2, Upload, X, RefreshCw } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { FormLabel } from "@/components/ui/form";
@@ -17,7 +17,9 @@ export default function ModelUploadStep({
   isUploading,
   uploadProgress,
   handleModelUpload,
-  previewImages
+  previewImages,
+  isHashing,
+  hashProgress
 }: ModelUploadStepProps) {
   return (
     <div className="space-y-6">
@@ -34,24 +36,43 @@ export default function ModelUploadStep({
           <CardContent className="pt-6 text-center">
             <div
               className="flex flex-col items-center justify-center space-y-3 py-4 cursor-pointer"
-              onClick={() => !isUploading && modelInputRef.current?.click()}
+              onClick={() => !isUploading && !isHashing && modelInputRef.current?.click()}
             >
               {!modelFile ? (
                 <>
-                  <Upload size={40} className="text-muted-foreground" />
-                  <div className="space-y-1">
-                    <p className="font-medium">Click to upload or drag and drop</p>
-                    <p className="text-sm text-muted-foreground">
-                      Support for .safetensors, .ckpt, .bin, and .pt files
-                    </p>
-                  </div>
-                  <input
-                    ref={modelInputRef}
-                    type="file"
-                    accept=".safetensors,.ckpt,.bin,.pt"
-                    onChange={handleModelUpload}
-                    className="hidden"
-                  />
+                  {isHashing ? (
+                    <div className="w-full space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin">
+                          <RefreshCw size={24} className="text-muted-foreground" />
+                        </div>
+                        <p className="font-medium">Checking file...</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Progress value={hashProgress || 0} className="h-2" />
+                        <p className="text-xs text-muted-foreground text-center">
+                          {hashProgress || 0}% processed
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload size={40} className="text-muted-foreground" />
+                      <div className="space-y-1">
+                        <p className="font-medium">Click to upload or drag and drop</p>
+                        <p className="text-sm text-muted-foreground">
+                          Support for .safetensors, .ckpt, .bin, and .pt files
+                        </p>
+                      </div>
+                      <input
+                        ref={modelInputRef}
+                        type="file"
+                        accept=".safetensors,.ckpt,.bin,.pt"
+                        onChange={handleModelUpload}
+                        className="hidden"
+                      />
+                    </>
+                  )}
                 </>
               ) : (
                 <div className="w-full space-y-4">

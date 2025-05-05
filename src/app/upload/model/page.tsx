@@ -24,6 +24,7 @@ import BasicInfoStep from "@/components/modelinfostep";
 import { uploadLargeFileToS3, getIncompleteUploads } from "@/lib/multiuploads";
 import { ModelFormSchema, modelFormSchema } from "@/lib/schemas";
 import { extractImageMetadata, ComfyMetadata } from "@/utils/getimgmetadata";
+import { calculateFileHash } from "@/utils/fileHash";
 
 // Direct image upload function with presigned URL
 const uploadImageDirectly = async (file: File): Promise<string> => {
@@ -72,6 +73,11 @@ export default function UploadModelPage() {
     const [isUploading, setIsUploading] = useState(false);
     const [id, setid] = useState("");
     const [nsfwStatus, setNsfwStatus] = useState<Record<number, boolean>>({});
+    
+    // Add states for file hashing
+    const [isHashing, setIsHashing] = useState(false);
+    const [hashProgress, setHashProgress] = useState(0);
+    const [fileHash, setFileHash] = useState<string | null>(null);
 
     // Remove NSFW model states - we'll use the ElysiaJS API instead
     const [incompleteUploads, setIncompleteUploads] = useState<{
@@ -210,6 +216,7 @@ export default function UploadModelPage() {
                     fileUrl: uploadedModelUrl,
                     fileName: modelFile.name,
                     fileSize: modelFile.size,
+                    fileHash: fileHash, // Include the hash in the update
                 }),
             });
 
@@ -270,13 +277,51 @@ export default function UploadModelPage() {
     };
 
     // Handle model file upload
-    const handleModelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleModelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        setModelFile(file);
-
-        // Reset the file input
-        if (e.target) e.target.value = '';
+        
+        try {
+            setIsHashing(true);
+            toast.info("Checking if this model has been uploaded before...");
+            
+            // Calculate file hash
+            const hash = await calculateFileHash(file, (progress) => {
+                setHashProgress(progress);
+            });
+            
+            // Check if model exists with this hash
+            const response = await fetch('/api/check-duplicate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ hash }),
+            });
+            
+            const data = await response.json();
+            
+            if (data.exists) {
+                // Model already exists
+                toast.error(`This model has already been uploaded with the name "${data.model?.name || 'Unknown'}"`);
+                return;
+            }
+            
+            // Save the hash for later use during upload
+            setFileHash(hash);
+            setModelFile(file);
+            toast.success("File ready for upload");
+            
+        } catch (error) {
+            console.error("Error checking file:", error);
+            toast.error("Error checking file. Please try again.");
+        } finally {
+            setIsHashing(false);
+            setHashProgress(0);
+            
+            // Reset the file input
+            if (e.target) e.target.value = '';
+        }
     };
 
     // Remove preview image
@@ -390,6 +435,8 @@ export default function UploadModelPage() {
                         uploadProgress={uploadProgress}
                         handleModelUpload={handleModelUpload}
                         previewImages={previewImages}
+                        isHashing={isHashing}
+                        hashProgress={hashProgress}
                     />
                 );
 

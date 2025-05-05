@@ -21,6 +21,20 @@ const s3Client = new S3Client({
 
 const BUCKET_NAME = process.env.R2_BUCKET_NAME || '';
 
+// Function to sanitize metadata values for S3
+function sanitizeMetadata(metadata: Record<string, string>): Record<string, string> {
+  const sanitized: Record<string, string> = {};
+  
+  for (const [key, value] of Object.entries(metadata)) {
+    // Replace invalid characters with underscores and ensure ASCII only
+    sanitized[key] = value
+      .replace(/[^\x20-\x7E]/g, '_') // Replace non-ASCII printable chars
+      .replace(/[^a-zA-Z0-9-_.]/g, '_'); // Replace special chars except allowed ones
+  }
+  
+  return sanitized;
+}
+
 // Initiate a multipart upload
 export async function POST(request: Request) {
   try {
@@ -40,15 +54,18 @@ export async function POST(request: Request) {
     // Ensure the model files go in a dedicated folder with proper naming
     const modelKey = `models/${sessionData.user.id}/${fileName}`;
     
+    // Prepare and sanitize metadata
+    const metadata = sanitizeMetadata({
+      userId: sessionData.user.id,
+      uploadTime: new Date().toISOString(),
+      modelName: fileName
+    });
+    
     const command = new CreateMultipartUploadCommand({
       Bucket: BUCKET_NAME,
       Key: modelKey,
       ContentType: contentType || 'application/octet-stream',
-      Metadata: {
-        userId: sessionData.user.id,
-        uploadTime: new Date().toISOString(),
-        modelName: fileName
-      }
+      Metadata: metadata
     });
     
     const { UploadId } = await s3Client.send(command);

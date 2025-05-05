@@ -18,6 +18,8 @@ export type ModelUploadStepProps = {
   uploadProgress: number;
   handleModelUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   previewImages: { file: File; preview: string; metadata?: ComfyMetadata }[];
+  isHashing?: boolean; // Added for file hash progress indication
+  hashProgress?: number; // Added for file hash progress percentage
 };
 
 export interface LicenseImagesStepProps {
