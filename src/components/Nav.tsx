@@ -10,6 +10,7 @@ import SignUp from "@/components/auth/sign-up"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { authClient } from "@/lib/auth-client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { SearchBar } from "@/components/SearchBar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,36 +94,37 @@ export function Navbar() {
         : "bg-background"
       } transition-all duration-200 border-b border-border/40`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo/Brand */}
+        <div className="flex items-center justify-between h-16">          {/* Logo/Brand */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="flex items-center space-x-2">
               <span className="text-xl font-bold text-primary">MiyukiAI</span>
             </Link>
-          </div>
-
-          {/* Center Navigation - This is the key change */}
+          </div>          {/* Center Search Bar */}
           <div className="hidden md:flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
-            <div className="flex items-center space-x-1">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    pathname.startsWith(item.href)
-                      ? "bg-muted text-foreground font-semibold"
-                      : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <item.icon className="mr-1.5 h-4 w-4" />
-                  {item.name}
-                </Link>
-              ))}
-            </div>
+            <SearchBar className="w-[28rem]" />
+          </div>
+          
+          {/* Navigation Menu (Right of Search Bar) */}
+          <div className="hidden md:flex items-center space-x-2 absolute left-[calc(50%+15rem)]">
+            {navigation.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname.startsWith(item.href)
+                    ? "bg-muted text-foreground font-semibold"
+                    : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <item.icon className="mr-1.5 h-4 w-4" />
+                {item.name}
+              </Link>
+            ))}
           </div>
 
           {/* Auth Buttons or User Menu with Create Button */}
           <div className="hidden md:flex items-center space-x-3">
+            
             {isPending ? (
               <div className="h-8 w-20 bg-muted animate-pulse rounded-md"></div>
             ) : session ? (
@@ -326,7 +328,10 @@ export function Navbar() {
             {/* Separator if user is not logged in and navigation exists */}
             {!session && !isPending && navigation.length > 0 && (
               <div className="pt-2 pb-1 border-t border-border/40"></div>
-            )}
+            )}            {/* Mobile Search Bar - Centered */}
+            <div className="px-3 py-2">
+              <SearchBar fullWidth={true} placeholder="Search models..." />
+            </div>
 
             {/* Mobile Auth Buttons (if not logged in) */}
             {!session && !isPending && (

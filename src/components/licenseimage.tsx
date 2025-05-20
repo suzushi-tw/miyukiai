@@ -55,7 +55,7 @@ export default function LicenseImagesStep({
   form,
   previewImages,
   previewInputRef,
-  handlePreviewUpload,
+  handlePreviewUpload: originalHandlePreviewUpload,
   removePreviewImage,
   setNsfwStatus,
   nsfwStatus,
@@ -67,6 +67,50 @@ export default function LicenseImagesStep({
   
   // Track files using unique identifiers instead of indices
   const checkedImagesRef = useRef<Set<string>>(new Set());
+  
+  // Add size validation wrapper for the upload handler
+  const handlePreviewUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+    
+    // Filter out files that are too large
+    const oversizedFiles = files.filter(file => file.size > MAX_SIZE);
+    
+    // Show error for oversized files
+    if (oversizedFiles.length > 0) {
+      oversizedFiles.forEach(file => {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        toast.error(`${file.name} (${sizeMB}MB) exceeds the 5MB limit`);
+      });
+      
+      // Create a new FileList with only valid files
+      const validFiles = files.filter(file => file.size <= MAX_SIZE);
+      
+      // If there are no valid files, reset the input and return
+      if (validFiles.length === 0) {
+        if (e.target) e.target.value = '';
+        return;
+      }
+      
+      // Create a mock event with only valid files
+      const dataTransfer = new DataTransfer();
+      validFiles.forEach(file => dataTransfer.items.add(file));
+      
+      const newEvent = {
+        ...e,
+        target: {
+          ...e.target,
+          files: dataTransfer.files
+        }
+      };
+      
+      // Pass the filtered files to the original handler
+      originalHandlePreviewUpload(newEvent as React.ChangeEvent<HTMLInputElement>);
+    } else {
+      // If all files are valid, proceed normally
+      originalHandlePreviewUpload(e);
+    }
+  };
   
   const licenseOptions = [
     { value: "mit", label: "MIT" },
@@ -291,8 +335,7 @@ export default function LicenseImagesStep({
                 </div>
               )}
             </div>
-          ))}
-          <div 
+          ))}          <div 
             className="border-2 border-dashed border-border rounded-md aspect-square flex flex-col items-center justify-center p-4 hover:bg-accent/50 transition cursor-pointer"
             onClick={() => previewInputRef.current?.click()}
           >
@@ -307,9 +350,8 @@ export default function LicenseImagesStep({
               className="hidden"
             />
           </div>
-        </div>
-        <FormDescription>
-          Upload sample images created with your model (max 5 images)
+        </div>        <FormDescription>
+          Upload sample images created with your model (max 5 MB per image)
         </FormDescription>
       </div>
       
