@@ -64,14 +64,13 @@ export default function LicenseImagesStep({
   const [selectedMetadata, setSelectedMetadata] = useState<ComfyMetadata | null>(null);
   const [revealedImages, setRevealedImages] = useState<Record<number, boolean>>({});
   const [isCheckingNsfw, setIsCheckingNsfw] = useState<Record<number, boolean>>({});
-  
-  // Track files using unique identifiers instead of indices
+    // Track files using unique identifiers instead of indices
   const checkedImagesRef = useRef<Set<string>>(new Set());
   
   // Add size validation wrapper for the upload handler
   const handlePreviewUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const MAX_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+    const MAX_SIZE = 6 * 1024 * 1024; // 6MB in bytes
     
     // Filter out files that are too large
     const oversizedFiles = files.filter(file => file.size > MAX_SIZE);
@@ -80,7 +79,7 @@ export default function LicenseImagesStep({
     if (oversizedFiles.length > 0) {
       oversizedFiles.forEach(file => {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        toast.error(`${file.name} (${sizeMB}MB) exceeds the 5MB limit`);
+        toast.error(`${file.name} (${sizeMB}MB) exceeds the 6MB limit`);
       });
       
       // Create a new FileList with only valid files
@@ -351,7 +350,7 @@ export default function LicenseImagesStep({
             />
           </div>
         </div>        <FormDescription>
-          Upload sample images created with your model (max 5 MB per image)
+          Upload sample images created with your model (max 6 MB per image)
         </FormDescription>
       </div>
       
