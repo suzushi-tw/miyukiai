@@ -19,9 +19,9 @@ export async function GET(request: Request) {
       orderBy: {
         createdAt: 'desc', // Most recent first
       },
-      include: {
-        user: {
+      include: {        user: {
           select: {
+            id: true,  // Add id to selected fields
             name: true,
             image: true,
           },
