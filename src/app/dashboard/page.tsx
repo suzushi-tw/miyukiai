@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SimpleIconsX, SimpleIconsHuggingface, CibKoFi, LineMdBuyMeACoffeeTwotone } from "@/lib/icon";
-import { Download, Calendar, Loader2, Trash2 } from "lucide-react";
+import { Download, Calendar, Loader2, Trash2, Pencil } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { authClient } from '@/lib/auth-client';
 import {
@@ -442,9 +442,21 @@ export default function UserProfilePage() {
                                             <div className="flex items-center gap-2">
                                                 <Download className="h-3.5 w-3.5" />
                                                 <span>{model.downloads} downloads</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
+                                            </div>                                            <div className="flex items-center gap-3">
                                                 <span>{formatDate(model.createdAt)}</span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        router.push(`/edit-model/${model.id}`);
+                                                    }}                                                    aria-label="Edit model"
+                                                    title="Edit model"
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <Button

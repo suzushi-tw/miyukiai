@@ -9,9 +9,66 @@ export async function GET(req: Request) {
   const search = searchParams.get("search");
   const modelType = searchParams.get("modelType");
   const baseModel = searchParams.get("baseModel");
+  const id = searchParams.get("id"); // Added id parameter
   const limit = 12; // Number of models per page
 
   try {
+    // If id is provided, fetch a single model
+    if (id) {
+      const model = await db.model.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true
+            }
+          },
+          images: {
+            select: {
+              id: true,
+              url: true,
+              isNsfw: true
+            }
+          }
+        }
+      });
+
+      if (!model) {
+        return NextResponse.json(
+          { error: "Model not found" },
+          { status: 404 }
+        );
+      }
+
+      // Transform the model data
+      const transformedModel = {
+        id: model.id,
+        name: model.name,
+        description: model.description || "",
+        version: model.version,
+        modelType: model.modelType,
+        baseModel: model.baseModel,
+        tags: model.tags || "",
+        triggerWords: model.triggerWords || "",
+        license: model.license || "",
+        fileUrl: model.fileUrl,
+        fileSize: model.fileSize.toString(), // Convert BigInt to string
+        fileName: model.fileName,
+        downloads: model.downloads,
+        user: model.user,
+        images: model.images.map(img => ({
+          id: img.id,
+          url: img.url,
+          isNsfw: img.isNsfw || false
+        })),
+        createdAt: model.createdAt,
+        updatedAt: model.updatedAt
+      };
+
+      return NextResponse.json({ model: transformedModel });
+    }
     // Build query filters
     const where: any = {};
     
