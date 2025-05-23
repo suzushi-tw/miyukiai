@@ -35,11 +35,12 @@ import {
 } from '@/components/ui/select';
 import { modelFormSchema, ModelFormSchema } from '@/lib/schemas';
 
-export default function EditModelPage({ params }: { params: { id: string } }) {
+export default function EditModelPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modelId, setModelId] = useState<string | null>(null);
   
   // Initialize form
   const form = useForm<ModelFormSchema>({
@@ -55,13 +56,28 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
       triggerWords: "", 
     },
   });
+  // Extract params on component mount
+  useEffect(() => {
+    async function extractParams() {
+      try {
+        const resolvedParams = await params;
+        setModelId(resolvedParams.id);
+      } catch (err) {
+        console.error('Error resolving params:', err);
+        setError('Failed to load model ID');
+      }
+    }
+    
+    extractParams();
+  }, [params]);
 
-  // Fetch model data on component mount
+  // Fetch model data when modelId is available
   useEffect(() => {
     const fetchModelData = async () => {
       setIsLoading(true);
-      setError(null);      try {
-        const response = await fetch(`/api/getmodels?id=${params.id}`);
+      setError(null);
+      try {
+        const response = await fetch(`/api/getmodels?id=${modelId}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch model data: ${response.statusText}`);
@@ -96,13 +112,18 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
       } finally {
         setIsLoading(false);
       }
-    };
-
-    if (params.id) {
+    };    if (modelId) {
       fetchModelData();
     }
-  }, [params.id, form]);  // Handle form submission
+  }, [modelId, form]);
+
+  // Handle form submission
   const onSubmit = async (formData: ModelFormSchema) => {
+    if (!modelId) {
+      toast.error('Model ID not available');
+      return;
+    }
+    
     setIsSaving(true);
     try {
       const response = await fetch('/api/edit-model', {
@@ -111,7 +132,7 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id: params.id,
+          id: modelId,
           ...formData,
         }),
       });

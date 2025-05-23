@@ -59,9 +59,7 @@ function transformModel(apiModel: ApiModel): TransformedModel {
         baseModel: apiModel.baseModel || 'Unknown',
         tags: apiModel.tags || null,
         downloads: apiModel.downloads || 0,
-        fileSize: typeof apiModel.fileSize === 'string'
-            ? BigInt(apiModel.fileSize)
-            : apiModel.fileSize as bigint,
+        fileSize: apiModel.fileSize || '0',
         createdAt: new Date(apiModel.createdAt || Date.now()),
         images: apiModel.images || [],
         user: {

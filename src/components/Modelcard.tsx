@@ -7,6 +7,7 @@ import { Download, Tag, Calendar } from "lucide-react"; // Keep Calendar if you 
 import { formatDistanceToNow } from 'date-fns';
 import type { TransformedModel } from '@/types/model';
 import NsfwImageWrapper from './NSFWimagewrapper';
+import { formatFileSize } from '@/utils/formatFileSize';
 
 interface ModelCardProps {
   model: TransformedModel;
@@ -17,17 +18,6 @@ export default function ModelCard({ model }: ModelCardProps) {
   const imageId = model.images?.[0]?.id || model.id;
   const isNsfw = model.images?.[0]?.isNsfw || false;
   console.log(imageId + " is NSFW: " + isNsfw)
-  // Format the file size
-  const formatFileSize = (bytes: bigint) => {
-    if (bytes === BigInt(0)) return '0 bytes'; // Handle zero case
-    if (bytes < BigInt(1024)) return `${bytes} bytes`;
-    const kb = Number(bytes) / 1024;
-    if (kb < 1024) return `${kb.toFixed(1)} KB`;
-    const mb = kb / 1024;
-    if (mb < 1024) return `${mb.toFixed(1)} MB`;
-    const gb = mb / 1024;
-    return `${gb.toFixed(1)} GB`;
-  };
 
   // Parse tags
   const tagList = model.tags ? model.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];

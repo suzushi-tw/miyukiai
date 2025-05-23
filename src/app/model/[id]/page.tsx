@@ -49,31 +49,7 @@ import NsfwImageWrapper from "@/components/NSFWimagewrapper";
 import { DownloadButton } from "@/components/Download";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { TriggerWords } from "@/components/Triggerwords";
-
-function formatBytes(bytes: bigint, decimals = 2) {
-  if (bytes === BigInt(0)) return "0 Bytes";
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = [
-    "Bytes",
-    "KB",
-    "MB",
-    "GB",
-    "TB",
-    "PB",
-    "EB",
-    "ZB",
-    "YB",
-  ];
-  const i = Math.floor(Math.log(Number(bytes)) / Math.log(k));
-  return (
-    parseFloat(
-      (Number(bytes) / Math.pow(k, i)).toFixed(dm)
-    ) +
-    " " +
-    sizes[i]
-  );
-}
+import { formatFileSize } from "@/utils/formatFileSize";
 
 interface GalleryImage {
   id: string;
@@ -88,7 +64,8 @@ export default async function Page({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const resolvedParams = await params;
+  const { id } = resolvedParams;
 
   const model = await db.model.findUnique({
     where: { id },
@@ -133,7 +110,7 @@ export default async function Page({
     month: "long",
     day: "numeric",
   }).format(model.createdAt);
-  const formattedFileSize = formatBytes(model.fileSize);
+  const formattedFileSize = formatFileSize(model.fileSize);
   const galleryImages = model.images.map(img => ({
     ...img,
     metadata: img.metadata as ComfyMetadata | null,
