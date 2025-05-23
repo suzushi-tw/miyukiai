@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         license,
         fileUrl,
         fileName,
-        fileSize: BigInt(fileSize || 0), // Provide default value
+        fileSize: fileSize?.toString() || "0", // Store as string directly
         userId: sessionData.user.id,
         downloads: 0,
         images: {
@@ -67,13 +67,11 @@ export async function POST(request: Request) {
       include: {
         images: true
       }
-    });
-
-    // Convert BigInt to string for JSON serialization
+    });    // Convert BigInt to string for JSON serialization
     const serializedModel = {
       ...model,
       id: model.id,
-      fileSize: model.fileSize.toString(),
+      fileSize: model.fileSize, // No conversion needed anymore
       createdAt: model.createdAt,
       updatedAt: model.updatedAt
     };

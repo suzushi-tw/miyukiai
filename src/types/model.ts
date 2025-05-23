@@ -7,7 +7,7 @@ export interface ApiModel {
     baseModel: string;
     tags: string | null;
     fileUrl: string;
-    fileSize: bigint | string;
+    fileSize: string;  // Changed from bigint | string to just string
     fileName: string;
     downloads: number;
     createdAt: string | Date;
@@ -40,7 +40,7 @@ export interface TransformedModel {
     license?: string;
     fileUrl?: string;
     fileName?: string;
-    fileSize: bigint;
+    fileSize: string;  // Changed from bigint to string
     downloads: number;
     createdAt: Date;
     updatedAt?: Date;

@@ -34,11 +34,9 @@ export async function GET(request: Request) {
           },
         },
       },
-    });
-
-    const serializedModels = models.map(model => ({
+    });    const serializedModels = models.map(model => ({
       ...model,
-      fileSize: model.fileSize.toString() // Convert BigInt to string
+      fileSize: model.fileSize // No need to convert to string anymore
     }));
 
     // Calculate pagination info

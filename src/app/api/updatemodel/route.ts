@@ -74,9 +74,7 @@ export async function POST(request: Request) {
           }
         });
       }
-    }
-
-    // Update the model (without including the images in this operation)
+    }    // Update the model (without including the images in this operation)
     const updatedModel = await db.model.update({
       where: { id },
       data: updateData,
@@ -85,10 +83,10 @@ export async function POST(request: Request) {
       }
     });
 
-    // Convert BigInt to string for JSON serialization
+    // No conversion needed with string fileSize
     const serializedModel = {
       ...updatedModel,
-      fileSize: updatedModel.fileSize?.toString(),
+      fileSize: updatedModel.fileSize, // No need to convert to string anymore
       images: updatedModel.images
     };
 

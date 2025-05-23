@@ -54,7 +54,7 @@ export async function GET(req: Request) {
         triggerWords: model.triggerWords || "",
         license: model.license || "",
         fileUrl: model.fileUrl,
-        fileSize: model.fileSize.toString(), // Convert BigInt to string
+        fileSize: model.fileSize, 
         fileName: model.fileName,
         downloads: model.downloads,
         user: model.user,
@@ -131,7 +131,7 @@ export async function GET(req: Request) {
       tags: model.tags || "",
       license: model.license || "",
       fileUrl: model.fileUrl,
-      fileSize: model.fileSize.toString(), // Convert BigInt to string
+      fileSize: model.fileSize, // No conversion needed anymore
       fileName: model.fileName,
       downloads: model.downloads,
       user: model.user,

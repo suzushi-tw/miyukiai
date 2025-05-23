@@ -39,7 +39,7 @@ interface NsfwApiResponse {
 }
 
 // Define API URL
-const NSFW_API_URL = 'https://nsfw.miyukiai.com/analyze';
+const NSFW_API_URL = 'https://api.miyukiai.com/analyze';
 
 export interface LicenseImagesStepProps {
   form: any;

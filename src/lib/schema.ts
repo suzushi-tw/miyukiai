@@ -69,14 +69,13 @@ export const model = pgTable("Model", {
   name: text().notNull(),
   description: text(),
   version: text().default('1.0').notNull(),
-  modelType: text().notNull(),
-  baseModel: text().notNull(),
+  modelType: text().notNull(),  baseModel: text().notNull(),
   tags: text(),
   license: text(),
   userId: text().notNull(),
   fileUrl: text().notNull(),
-  // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-  fileSize: bigint({ mode: "number" }).notNull(),
+  // Changed from bigint to text for easier JSON handling
+  fileSize: text().notNull(),
   fileName: text().notNull(),
   downloads: integer().default(0).notNull(),
   createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),

@@ -60,8 +60,7 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchModelData = async () => {
       setIsLoading(true);
-      setError(null);
-      try {
+      setError(null);      try {
         const response = await fetch(`/api/getmodels?id=${params.id}`);
         
         if (!response.ok) {
@@ -72,8 +71,12 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
         
         if (!data || !data.model) {
           throw new Error('Model not found');
-        }          // Set form values from fetched data
+        }
+        
+        // Set form values from fetched data
         console.log("Model data from API:", data.model);
+        console.log("License:", data.model.license);
+        console.log("Base Model:", data.model.baseModel);
         
         // Use setValue for each field instead of form.reset to ensure proper updates
         form.setValue('name', data.model.name || '');
@@ -98,8 +101,7 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
     if (params.id) {
       fetchModelData();
     }
-  }, [params.id, form]);
-  // Handle form submission
+  }, [params.id, form]);  // Handle form submission
   const onSubmit = async (formData: ModelFormSchema) => {
     setIsSaving(true);
     try {
@@ -128,6 +130,21 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
       setIsSaving(false);
     }
   };
+  
+  // This useEffect ensures the selects update if default values don't match any options
+  useEffect(() => {
+    if (!isLoading) {
+      const currentValues = form.getValues();
+      
+      // Check if license is valid in our options
+      const licenseValue = currentValues.license;
+      console.log("Current license value:", licenseValue);
+      
+      // Check if baseModel is valid in our options
+      const baseModelValue = currentValues.baseModel;
+      console.log("Current baseModel value:", baseModelValue);
+    }
+  }, [isLoading, form]);
 
   if (isLoading) {
     return (
@@ -281,6 +298,7 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
                           <SelectItem value="sd15">Stable Diffusion 1.5</SelectItem>
                           <SelectItem value="sdxl">Stable Diffusion XL</SelectItem>
                           <SelectItem value="sd3">Stable Diffusion 3</SelectItem>
+                          <SelectItem value="lora">LoRA</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
@@ -290,7 +308,7 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
                       <FormMessage />
                     </FormItem>
                   )}
-                />                <FormField
+                /><FormField
                   control={form.control}
                   name="license"
                   render={({ field }) => (
@@ -313,6 +331,11 @@ export default function EditModelPage({ params }: { params: { id: string } }) {
                           <SelectItem value="cc-by-sa-4.0">Creative Commons CC-BY-SA 4.0</SelectItem>
                           <SelectItem value="cc-by-nc-sa-4.0">Creative Commons CC-BY-NC-SA 4.0</SelectItem>
                           <SelectItem value="mit">MIT License</SelectItem>
+                          <SelectItem value="apache">Apache 2.0</SelectItem>
+                          <SelectItem value="gpl">GPL</SelectItem>
+                          <SelectItem value="Illustrious">Illustrious License</SelectItem>
+                          <SelectItem value="Stability AI">Stability AI Community License</SelectItem>
+                          <SelectItem value="custom">Custom License</SelectItem>
                           <SelectItem value="other">Other (specify in description)</SelectItem>
                         </SelectContent>
                       </Select>
