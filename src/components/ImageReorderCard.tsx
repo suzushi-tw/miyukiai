@@ -44,10 +44,8 @@ const ImageItem = ({
   index: number 
 }) => {
   const [imageLoading, setImageLoading] = useState(true);
-  const [imageError, setImageError] = useState(false);
-
-  return (
-    <div className="relative group overflow-hidden rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200">
+  const [imageError, setImageError] = useState(false);  return (
+    <div className="relative group overflow-hidden rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200 select-none">
       <div className="aspect-square relative w-full">
         {/* Loading state */}
         {imageLoading && !imageError && (
@@ -71,8 +69,7 @@ const ImageItem = ({
           <Image
             src={image.url}
             alt={`Model image ${index + 1}`}
-            fill
-            className={`object-cover rounded-lg transition-opacity duration-300 ${
+            fill            className={`object-cover rounded-lg transition-opacity duration-300 ${
               imageLoading ? 'opacity-0' : 'opacity-100'
             }`}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -82,15 +79,27 @@ const ImageItem = ({
               setImageError(true);
             }}
             priority={index < 4}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
           />
         )}
 
-        {/* Drag handle */}
+        {/* Drag handle - Option 1: Bigger handle */}
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="bg-black/70 backdrop-blur-sm rounded-md p-1.5">
-            <GripVertical className="h-4 w-4 text-white" />
+          <div className="bg-black/70 backdrop-blur-sm rounded-lg p-3">
+            <GripVertical className="h-6 w-6 text-white" />
           </div>
         </div>
+
+        {/* Option 2: Full image drag overlay - uncomment to use instead of handle above
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-grab active:cursor-grabbing">
+          <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] rounded-lg flex items-center justify-center">
+            <div className="bg-black/70 backdrop-blur-sm rounded-lg p-3">
+              <GripVertical className="h-8 w-8 text-white" />
+            </div>
+          </div>
+        </div>
+        */}
 
         {/* Order badge */}
         <div className="absolute top-2 left-2">
@@ -122,15 +131,20 @@ export default function ImageReorderCard({
 }: ImageReorderCardProps) {
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentImages, setCurrentImages] = useState<ModelImage[]>(images);
   const containerRef = useRef<HTMLDivElement>(null);
   const swapyRef = useRef<any>(null);
   
-  // Sort images by order for consistent rendering
-  const sortedImages = [...images].sort((a, b) => a.order - b.order);
-  
-  // Initialize Swapy once when component mounts - following the documentation example
+  // Update internal state when props change
   useEffect(() => {
-    if (!containerRef.current) return;
+    setCurrentImages(images);
+  }, [images]);
+  
+  // Sort images by order for consistent rendering
+  const sortedImages = [...currentImages].sort((a, b) => a.order - b.order);
+    // Initialize Swapy once when component mounts - following the documentation example
+  useEffect(() => {
+    if (!containerRef.current || currentImages.length === 0) return;
 
     // Clean up previous instance
     if (swapyRef.current) {
@@ -140,6 +154,8 @@ export default function ImageReorderCard({
     try {
       swapyRef.current = createSwapy(containerRef.current, {
         animation: 'dynamic',
+        autoScrollOnDrag: true,
+        dragOnHold: false,
       });
 
       swapyRef.current.onSwap((event: any) => {
@@ -149,15 +165,13 @@ export default function ImageReorderCard({
 
     } catch (error) {
       console.error('Failed to initialize Swapy:', error);
-    }
-
-    return () => {
+    }    return () => {
       if (swapyRef.current) {
         swapyRef.current.destroy();
         swapyRef.current = null;
       }
     };
-  }, []); // Empty dependency array - only run once
+  }, [currentImages.length]); // Depend on the length to reinitialize when images change
 
   const handleSaveOrder = async () => {
     if (!hasChanges || !swapyRef.current) return;
@@ -200,19 +214,19 @@ export default function ImageReorderCard({
 
       if (!response.ok) {
         throw new Error('Failed to update image order');
-      }
-
-      // Create reordered images array based on new order
+      }      // Create reordered images array based on new order
       const reorderedImages = imageOrders
         .sort((a, b) => a.order - b.order)
         .map((orderItem) => {
-          const image = images.find(img => img.id === orderItem.imageId)!;
+          const image = currentImages.find(img => img.id === orderItem.imageId)!;
           return {
             ...image,
             order: orderItem.order,
           };
         });
 
+      // Update internal state immediately
+      setCurrentImages(reorderedImages);
       setHasChanges(false);
       onImagesReordered(reorderedImages);
       toast.success('Image order updated successfully!');
@@ -223,16 +237,20 @@ export default function ImageReorderCard({
       setIsSaving(false);
     }
   };
-
   const handleReset = () => {
     if (swapyRef.current) {
       swapyRef.current.destroy();
+      
+      // Reset to original images from props
+      setCurrentImages(images);
       
       // Reinitialize with original order
       setTimeout(() => {
         if (containerRef.current) {
           swapyRef.current = createSwapy(containerRef.current, {
             animation: 'dynamic',
+            autoScrollOnDrag: true,
+            dragOnHold: false,
           });
           
           swapyRef.current.onSwap((event: any) => {
@@ -244,9 +262,8 @@ export default function ImageReorderCard({
     }
     setHasChanges(false);
   };
-
   // Empty state
-  if (images.length === 0) {
+  if (currentImages.length === 0) {
     return (
       <Card className="shadow-lg bg-white/95 dark:bg-slate-900/95">
         <CardHeader>
@@ -318,9 +335,7 @@ export default function ImageReorderCard({
               Save Order
             </Button>
           )}
-        </div>
-
-        {/* Images grid with drag and drop */}
+        </div>        {/* Images grid with drag and drop */}
         <div
           ref={containerRef}
           className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
@@ -329,7 +344,7 @@ export default function ImageReorderCard({
             <div
               key={`slot-${image.id}`}
               data-swapy-slot={`slot-${image.id}`}
-              className="cursor-grab active:cursor-grabbing"
+              className="cursor-grab active:cursor-grabbing touch-none"
             >
               <div data-swapy-item={`item-${image.id}`}>
                 <ImageItem image={image} index={index} />
