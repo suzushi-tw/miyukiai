@@ -24,12 +24,15 @@ export async function GET(req: Request) {
               name: true,
               image: true
             }
-          },
-          images: {
+          },          images: {
+            orderBy: {
+              order: 'asc'
+            },
             select: {
               id: true,
               url: true,
-              isNsfw: true
+              isNsfw: true,
+              order: true
             }
           }
         }
@@ -57,11 +60,11 @@ export async function GET(req: Request) {
         fileSize: model.fileSize, 
         fileName: model.fileName,
         downloads: model.downloads,
-        user: model.user,
-        images: model.images.map(img => ({
+        user: model.user,        images: model.images.map(img => ({
           id: img.id,
           url: img.url,
-          isNsfw: img.isNsfw || false
+          isNsfw: img.isNsfw || false,
+          order: img.order
         })),
         createdAt: model.createdAt,
         updatedAt: model.updatedAt
@@ -103,13 +106,16 @@ export async function GET(req: Request) {
             name: true,
             image: true
           }
-        },
-        images: {
+        },        images: {
+          orderBy: {
+            order: 'asc'
+          },
           take: 1,
           select: {
             id: true,
             url: true,
-            isNsfw: true // Include the NSFW flag
+            isNsfw: true,
+            order: true
           }
         }
       }
@@ -134,11 +140,11 @@ export async function GET(req: Request) {
       fileSize: model.fileSize, // No conversion needed anymore
       fileName: model.fileName,
       downloads: model.downloads,
-      user: model.user,
-      images: model.images.map(img => ({
+      user: model.user,      images: model.images.map(img => ({
         id: img.id,
         url: img.url,
-        isNsfw: img.isNsfw || false // Include NSFW status with a default value
+        isNsfw: img.isNsfw || false,
+        order: img.order
       })),
       createdAt: model.createdAt,
       updatedAt: model.updatedAt

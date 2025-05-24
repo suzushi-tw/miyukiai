@@ -86,10 +86,12 @@ model ModelImage {
   url       String
   metadata  Json?
   isNsfw    Boolean  @default(false)
+  order     Int      @default(0) // Field to control display order
   createdAt DateTime @default(now())
   
   @@index([modelId])
   @@index([userId]) // Add index for userId for better query performance
+  @@index([modelId, order]) // Index for efficient ordering queries
 }
 
 model verification {

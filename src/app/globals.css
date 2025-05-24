@@ -123,3 +123,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Image loading shimmer animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.bg-shimmer {
+  animation: shimmer 2s infinite ease-in-out;
+}
