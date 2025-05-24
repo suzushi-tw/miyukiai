@@ -6,8 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2, Edit, Image as ImageIcon } from 'lucide-react';
-import ImageReorderComponent from '@/components/Imagereorder';
+import ImageReorderDialog from '@/components/ImageReorderDialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Form,
   FormControl,
@@ -510,10 +511,9 @@ export default function EditModelPage({ params }: { params: Promise<{ id: string
                 </form>
               </Form>
             </Card>
-          </div>
-
-          {/* Right Column - Image Management */}
+          </div>          {/* Right Column - Image Management */}
           <div className="lg:col-span-1">
+          
             <Card className="shadow-xl border-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
               <CardHeader className="pb-6">
                 <div className="flex items-center space-x-3">
@@ -529,13 +529,52 @@ export default function EditModelPage({ params }: { params: Promise<{ id: string
                 </div>
               </CardHeader>
               
-              <CardContent>
-                {modelId && (
-                  <ImageReorderComponent
-                    modelId={modelId}
-                    images={modelImages}
-                    onImagesReordered={handleImagesReordered}
-                  />
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {modelImages.length > 0 
+                      ? `${modelImages.length} image${modelImages.length !== 1 ? 's' : ''} uploaded`
+                      : 'No images uploaded'
+                    }
+                  </p>
+                  
+                  {modelId && (
+                    <ImageReorderDialog
+                      modelId={modelId}
+                      images={modelImages}
+                      onImagesReordered={handleImagesReordered}
+                      trigger={
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          disabled={modelImages.length === 0}
+                        >
+                          <ImageIcon className="h-4 w-4 mr-2" />
+                          {modelImages.length > 0 ? 'Reorder Images' : 'No Images to Reorder'}
+                        </Button>
+                      }
+                    />
+                  )}
+                </div>
+                
+                {modelImages.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">
+                      Current banner:
+                    </div>
+                    <div className="relative aspect-video rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+                      <img
+                        src={modelImages.find(img => img.order === 0)?.url || modelImages[0]?.url}
+                        alt="Current banner"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2 left-2">
+                        <Badge className="text-xs">
+                          Banner
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
