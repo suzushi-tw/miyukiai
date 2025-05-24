@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2, Edit, Image as ImageIcon } from 'lucide-react';
-import ImageReorderDialog from '@/components/ImageReorderDialog';
+import ImageReorderCard from '@/components/ImageReorderCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -239,346 +239,284 @@ export default function EditModelPage({ params }: { params: Promise<{ id: string
               </p>
             </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Model Form */}
-          <div className="lg:col-span-2">
-            <Card className="shadow-xl border-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-              <CardHeader className="pb-6">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                    <Edit className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">Model Information</CardTitle>
-                    <CardDescription>
-                      Update your model details and metadata
-                    </CardDescription>
-                  </div>
+        </div>        <div className="space-y-8">
+          {/* Model Form */}
+          <Card className="shadow-xl border-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+            <CardHeader className="pb-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                  <Edit className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
-              </CardHeader>
-              
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                  <CardContent className="space-y-8">
-                    {/* Basic Information */}
-                    <div className="space-y-6">
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center">
-                        Basic Information
-                      </h3>
-                      
-                      <FormField
-                        control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Model Name</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Enter model name" 
-                                className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              A clear, descriptive name for your model.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Description</FormLabel>
-                            <FormControl>
-                              <Textarea 
-                                placeholder="Describe your model..." 
-                                className="min-h-[120px] bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Provide details about your model, its capabilities, and usage examples.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <Separator className="bg-slate-200 dark:bg-slate-700" />
-
-                    {/* Technical Details */}
-                    <div className="space-y-6">
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                        Technical Details
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField
-                          control={form.control}
-                          name="version"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">Version</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="1.0" 
-                                  className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="modelType"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">Model Type</FormLabel>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                value={field.value}
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                                    <SelectValue placeholder="Select model type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="checkpoint">Checkpoint</SelectItem>
-                                  <SelectItem value="lora">LoRA</SelectItem>
-                                  <SelectItem value="lycoris">LyCORIS</SelectItem>
-                                  <SelectItem value="controlnet">ControlNet</SelectItem>
-                                  <SelectItem value="textualinversion">Textual Inversion</SelectItem>
-                                  <SelectItem value="vae">VAE</SelectItem>
-                                  <SelectItem value="other">Other</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormDescription>
-                                The type of model you&apos;re sharing.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField
-                          control={form.control}
-                          name="baseModel"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">Base Model</FormLabel>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                value={field.value}
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                                    <SelectValue placeholder="Select base model" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="sd15">Stable Diffusion 1.5</SelectItem>
-                                  <SelectItem value="sdxl">Stable Diffusion XL</SelectItem>
-                                  <SelectItem value="sd3">Stable Diffusion 3</SelectItem>
-                                  <SelectItem value="lora">LoRA</SelectItem>
-                                  <SelectItem value="other">Other</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormDescription>
-                                The base model this is built upon.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="license"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">License</FormLabel>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                value={field.value}
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                                    <SelectValue placeholder="Select license" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="creativeml-openrail-m">CreativeML Open RAIL-M</SelectItem>
-                                  <SelectItem value="cc-by-4.0">Creative Commons CC-BY 4.0</SelectItem>
-                                  <SelectItem value="cc-by-nc-4.0">Creative Commons CC-BY-NC 4.0</SelectItem>
-                                  <SelectItem value="cc-by-sa-4.0">Creative Commons CC-BY-SA 4.0</SelectItem>
-                                  <SelectItem value="cc-by-nc-sa-4.0">Creative Commons CC-BY-NC-SA 4.0</SelectItem>
-                                  <SelectItem value="mit">MIT License</SelectItem>
-                                  <SelectItem value="apache">Apache 2.0</SelectItem>
-                                  <SelectItem value="gpl">GPL</SelectItem>
-                                  <SelectItem value="Illustrious">Illustrious License</SelectItem>
-                                  <SelectItem value="Stability AI">Stability AI Community License</SelectItem>
-                                  <SelectItem value="custom">Custom License</SelectItem>
-                                  <SelectItem value="other">Other (specify in description)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormDescription>
-                                The license that applies to your model.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-
-                    <Separator className="bg-slate-200 dark:bg-slate-700" />
-
-                    {/* Additional Information */}
-                    <div className="space-y-6">
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                        Additional Information
-                      </h3>
-                      
-                      <FormField
-                        control={form.control}
-                        name="tags"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Tags</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="art, portrait, realistic, etc." 
-                                className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Add relevant tags separated by commas.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="triggerWords"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Trigger Words</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Add trigger words for this model" 
-                                className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Special words to activate this model, separated by commas.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </CardContent>
-                  
-                  <CardFooter className="flex justify-between pt-6 bg-slate-50 dark:bg-slate-800/50">
-                    <Button variant="outline" type="button" onClick={() => router.back()}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isSaving} className="min-w-[120px]">
-                      {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save Changes
-                    </Button>
-                  </CardFooter>
-                </form>
-              </Form>
-            </Card>
-          </div>          {/* Right Column - Image Management */}
-          <div className="lg:col-span-1">
-          
-            <Card className="shadow-xl border-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-              <CardHeader className="pb-6">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                    <ImageIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">Image Management</CardTitle>
-                    <CardDescription>
-                      Organize and reorder your model images
-                    </CardDescription>
-                  </div>
+                <div>
+                  <CardTitle className="text-xl">Model Information</CardTitle>
+                  <CardDescription>
+                    Update your model details and metadata
+                  </CardDescription>
                 </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {modelImages.length > 0 
-                      ? `${modelImages.length} image${modelImages.length !== 1 ? 's' : ''} uploaded`
-                      : 'No images uploaded'
-                    }
-                  </p>
-                  
-                  {modelId && (
-                    <ImageReorderDialog
-                      modelId={modelId}
-                      images={modelImages}
-                      onImagesReordered={handleImagesReordered}
-                      trigger={
-                        <Button 
-                          variant="outline" 
-                          className="w-full"
-                          disabled={modelImages.length === 0}
-                        >
-                          <ImageIcon className="h-4 w-4 mr-2" />
-                          {modelImages.length > 0 ? 'Reorder Images' : 'No Images to Reorder'}
-                        </Button>
-                      }
+              </div>
+            </CardHeader>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)}>
+                <CardContent className="space-y-8">
+                  {/* Basic Information */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center">
+                      Basic Information
+                    </h3>
+                    
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium">Model Name</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter model name" 
+                              className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            A clear, descriptive name for your model.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  )}
-                </div>
-                
-                {modelImages.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground">
-                      Current banner:
-                    </div>
-                    <div className="relative aspect-video rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
-                      <img
-                        src={modelImages.find(img => img.order === 0)?.url || modelImages[0]?.url}
-                        alt="Current banner"
-                        className="w-full h-full object-cover"
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium">Description</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Describe your model..." 
+                              className="min-h-[120px] bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Provide details about your model, its capabilities, and usage examples.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Separator className="bg-slate-200 dark:bg-slate-700" />
+
+                  {/* Technical Details */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                      Technical Details
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="version"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Version</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="1.0" 
+                                className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                      <div className="absolute top-2 left-2">
-                        <Badge className="text-xs">
-                          Banner
-                        </Badge>
-                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="modelType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Model Type</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                                  <SelectValue placeholder="Select model type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="checkpoint">Checkpoint</SelectItem>
+                                <SelectItem value="lora">LoRA</SelectItem>
+                                <SelectItem value="lycoris">LyCORIS</SelectItem>
+                                <SelectItem value="controlnet">ControlNet</SelectItem>
+                                <SelectItem value="textualinversion">Textual Inversion</SelectItem>
+                                <SelectItem value="vae">VAE</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              The type of model you&apos;re sharing.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="baseModel"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Base Model</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                                  <SelectValue placeholder="Select base model" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="sd15">Stable Diffusion 1.5</SelectItem>
+                                <SelectItem value="sdxl">Stable Diffusion XL</SelectItem>
+                                <SelectItem value="sd3">Stable Diffusion 3</SelectItem>
+                                <SelectItem value="lora">LoRA</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              The base model this is built upon.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="license"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">License</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                                  <SelectValue placeholder="Select license" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="creativeml-openrail-m">CreativeML Open RAIL-M</SelectItem>
+                                <SelectItem value="cc-by-4.0">Creative Commons CC-BY 4.0</SelectItem>
+                                <SelectItem value="cc-by-nc-4.0">Creative Commons CC-BY-NC 4.0</SelectItem>
+                                <SelectItem value="cc-by-sa-4.0">Creative Commons CC-BY-SA 4.0</SelectItem>
+                                <SelectItem value="cc-by-nc-sa-4.0">Creative Commons CC-BY-NC-SA 4.0</SelectItem>
+                                <SelectItem value="mit">MIT License</SelectItem>
+                                <SelectItem value="apache">Apache 2.0</SelectItem>
+                                <SelectItem value="gpl">GPL</SelectItem>
+                                <SelectItem value="Illustrious">Illustrious License</SelectItem>
+                                <SelectItem value="Stability AI">Stability AI Community License</SelectItem>
+                                <SelectItem value="custom">Custom License</SelectItem>
+                                <SelectItem value="other">Other (specify in description)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              The license that applies to your model.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+
+                  <Separator className="bg-slate-200 dark:bg-slate-700" />
+
+                  {/* Additional Information */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                      Additional Information
+                    </h3>
+                    
+                    <FormField
+                      control={form.control}
+                      name="tags"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium">Tags</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="art, portrait, realistic, etc." 
+                              className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Add relevant tags separated by commas.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="triggerWords"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium">Trigger Words</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Add trigger words for this model" 
+                              className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Special words to activate this model, separated by commas.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+                
+                <CardFooter className="flex justify-between pt-6 bg-slate-50 dark:bg-slate-800/50">
+                  <Button variant="outline" type="button" onClick={() => router.back()}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSaving} className="min-w-[120px]">
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Changes
+                  </Button>
+                </CardFooter>
+              </form>
+            </Form>
+          </Card>
+
+          {/* Image Reorder Card */}
+          {modelId && (
+            <ImageReorderCard
+              modelId={modelId}
+              images={modelImages}
+              onImagesReordered={handleImagesReordered}
+            />
+          )}
         </div>
       </div>
     </div>
