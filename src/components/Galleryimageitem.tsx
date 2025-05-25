@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Image from "next/image";
-import { Info, Copy, CheckCircle2 } from "lucide-react";
+import { Info, Copy, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -220,6 +220,24 @@ const MetadataDialogContent = ({ metadata }: { metadata: ComfyMetadata }) => {
 
 export default function GalleryImageItem({ image, modelName }: GalleryImageItemProps) {
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  
+  // Reset states when image URL changes
+  const resetImageStates = () => {
+    setImageLoading(true);
+    setImageError(false);
+    setRetryCount(0);
+  };
+
+  // Retry loading the image
+  const retryImageLoad = () => {
+    if (retryCount < 2) { // Allow up to 2 retries
+      resetImageStates();
+      setRetryCount(prev => prev + 1);
+    }
+  };
   
   // Memoize the click handler to avoid recreating on every render
   const handleClick = useCallback(() => {
@@ -250,8 +268,7 @@ export default function GalleryImageItem({ image, modelName }: GalleryImageItemP
   }
 
   return (
-    <>
-      {/* Image container - clickable to open modal */}
+    <>      {/* Image container - clickable to open modal */}
       <div
         className="aspect-square w-60 h-60 md:w-72 md:h-72 flex-shrink-0 rounded-lg overflow-hidden relative group border cursor-pointer"
         onClick={handleClick}
@@ -259,13 +276,46 @@ export default function GalleryImageItem({ image, modelName }: GalleryImageItemP
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
-        <Image
+        {/* Loading state */}
+        {imageLoading && !imageError && (
+          <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 flex items-center justify-center z-20">
+            <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+          </div>
+        )}        {/* Error state */}
+        {imageError && (
+          <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center z-20 p-4">
+            <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
+            <p className="text-slate-600 dark:text-slate-400 text-sm text-center mb-2">
+              Failed to load image
+            </p>
+            {retryCount < 2 && (
+              <button
+                onClick={retryImageLoad}
+                className="text-xs text-blue-500 hover:text-blue-700 underline"
+              >
+                Retry ({retryCount}/2)
+              </button>
+            )}
+          </div>
+        )}        <Image
           src={image.url}
           fill
           alt={`Sample of ${modelName} - ${image.id}`}
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          className={`object-cover transition-all duration-300 group-hover:scale-105 ${
+            imageLoading ? 'opacity-0' : 'opacity-100'
+          }`}
           sizes="(max-width: 768px) 240px, 288px"
           priority={false}
+          onLoad={() => {
+            setImageLoading(false);
+            setImageError(false); // Clear any previous error state
+          }}
+          onError={() => {
+            setImageLoading(false);
+            // Add a slight delay before showing error to handle race conditions
+            setTimeout(() => setImageError(true), 100);
+          }}
+          key={`${image.url}-${retryCount}`} // Force re-render on retry
         />
         {/* Info icon - also clickable, appears on hover */}
         {image.metadata && (

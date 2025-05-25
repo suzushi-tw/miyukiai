@@ -69,14 +69,14 @@ export default async function Page({
 
   const model = await db.model.findUnique({
     where: { id },
-    include: {
-      images: {
-        orderBy: { createdAt: "asc" },
+    include: {      images: {
+        orderBy: { order: "asc" },  // Order by the order field instead of createdAt
         select: {
           id: true,
           url: true,
           metadata: true,
           isNsfw: true,
+          order: true,  // Include order field
           createdAt: true,
         },
       },

@@ -134,11 +134,22 @@ export default function ImageReorderCard({
   const [currentImages, setCurrentImages] = useState<ModelImage[]>(images);
   const containerRef = useRef<HTMLDivElement>(null);
   const swapyRef = useRef<any>(null);
+  const justSavedRef = useRef(false);
   
-  // Update internal state when props change
+  // Update internal state when props change, but not during/after save operations
   useEffect(() => {
+    // Don't update if we're currently saving or just finished saving
+    if (isSaving || justSavedRef.current) {
+      if (justSavedRef.current) {
+        // Reset the flag after a brief delay
+        setTimeout(() => {
+          justSavedRef.current = false;
+        }, 100);
+      }
+      return;
+    }
     setCurrentImages(images);
-  }, [images]);
+  }, [images, isSaving]);
   
   // Sort images by order for consistent rendering
   const sortedImages = [...currentImages].sort((a, b) => a.order - b.order);
@@ -223,11 +234,10 @@ export default function ImageReorderCard({
             ...image,
             order: orderItem.order,
           };
-        });
-
-      // Update internal state immediately
+        });      // Update internal state immediately and set save flag
       setCurrentImages(reorderedImages);
       setHasChanges(false);
+      justSavedRef.current = true;
       onImagesReordered(reorderedImages);
       toast.success('Image order updated successfully!');
     } catch (error) {

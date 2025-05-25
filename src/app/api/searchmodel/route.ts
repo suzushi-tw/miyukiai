@@ -31,12 +31,15 @@ export async function GET(request: NextRequest) {
             name: true,
             image: true,
           }
-        },
-        images: {
-          take: 1,
+        },        images: {
+          orderBy: {
+            order: 'asc'  // Order by the order field to get banner image first
+          },
+          take: 1,  // Only take the first image (banner image with order 0)
           select: {
             url: true,
             isNsfw: true,
+            order: true  // Include order field in response
           }
         }
       },

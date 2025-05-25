@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Info } from "lucide-react"; // Removed X
+import { Info, Loader2, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,92 @@ interface ModelImageGalleryProps {
   modelName: string;
 }
 
+// Component for individual image items with loading states
+function ImageItem({ image, modelName, onShowMetadata }: {
+  image: ModelImage;
+  modelName: string;
+  onShowMetadata: (image: ModelImage) => void;
+}) {
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Reset states when image URL changes
+  const resetImageStates = () => {
+    setImageLoading(true);
+    setImageError(false);
+    setRetryCount(0);
+  };
+
+  // Retry loading the image
+  const retryImageLoad = () => {
+    if (retryCount < 2) { // Allow up to 2 retries
+      resetImageStates();
+      setRetryCount(prev => prev + 1);
+    }
+  };
+
+  return (
+    <div className="aspect-square rounded-lg overflow-hidden relative group border">
+      {/* Loading state */}
+      {imageLoading && !imageError && (
+        <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 flex items-center justify-center z-20">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+        </div>
+      )}
+
+      {/* Error state */}
+      {imageError && (
+        <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center z-20 p-4">
+          <AlertCircle className="h-6 w-6 text-red-500 mb-1" />
+          <p className="text-slate-600 dark:text-slate-400 text-xs text-center mb-1">
+            Failed to load
+          </p>
+          {retryCount < 2 && (
+            <button
+              onClick={retryImageLoad}
+              className="text-xs text-blue-500 hover:text-blue-700 underline"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
+      <Image
+        src={image.url}
+        fill
+        alt={`Sample of ${modelName}`}
+        className={`object-cover transition-all duration-300 group-hover:scale-105 ${
+          imageLoading ? 'opacity-0' : 'opacity-100'
+        }`}
+        onLoad={() => {
+          setImageLoading(false);
+          setImageError(false); // Clear any previous error state
+        }}
+        onError={() => {
+          setImageLoading(false);
+          // Add a slight delay before showing error to handle race conditions
+          setTimeout(() => setImageError(true), 100);
+        }}
+        key={`${image.url}-${retryCount}`} // Force re-render on retry
+      />
+      {image.metadata && (
+        <button
+          type="button"
+          onClick={() => onShowMetadata(image)}
+          className="absolute top-2 right-2 bg-background/80 hover:bg-background rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          aria-label="Show image metadata"
+        >
+          <Info size={18} className="text-blue-500" />
+        </button>
+      )}
+      {/* Add a subtle overlay on hover */}
+      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+    </div>
+  );
+}
+
 export default function ModelImageGallery({ images, modelName }: ModelImageGalleryProps) {
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
   const [selectedMetadata, setSelectedMetadata] = useState<ComfyMetadata | null>(null);
@@ -44,31 +130,16 @@ export default function ModelImageGallery({ images, modelName }: ModelImageGalle
     if (value === undefined || value === null || value === '') return <span className="text-muted-foreground italic">N/A</span>;
     return <div className="truncate">{String(value)}</div>;
   };
-
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {images.map((image) => (
-          <div key={image.id} className="aspect-square rounded-lg overflow-hidden relative group border">
-            <Image
-              src={image.url}
-              fill
-              alt={`Sample of ${modelName}`}
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-            {image.metadata && (
-              <button
-                type="button"
-                onClick={() => showMetadata(image)}
-                className="absolute top-2 right-2 bg-background/80 hover:bg-background rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                aria-label="Show image metadata"
-              >
-                <Info size={18} className="text-blue-500" />
-              </button>
-            )}
-             {/* Add a subtle overlay on hover */}
-             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-          </div>
+          <ImageItem
+            key={image.id}
+            image={image}
+            modelName={modelName}
+            onShowMetadata={showMetadata}
+          />
         ))}
       </div>
 

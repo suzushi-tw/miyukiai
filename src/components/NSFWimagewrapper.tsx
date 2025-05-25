@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface NsfwImageWrapperProps {
@@ -29,25 +29,73 @@ export default function NsfwImageWrapper({
   onClick
 }: NsfwImageWrapperProps) {
   const [revealed, setRevealed] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   const revealImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     setRevealed(true);
   };
+
+  // Reset states when image URL changes
+  const resetImageStates = () => {
+    setImageLoading(true);
+    setImageError(false);
+    setRetryCount(0);
+  };
+
+  // Retry loading the image
+  const retryImageLoad = () => {
+    if (retryCount < 2) { // Allow up to 2 retries
+      resetImageStates();
+      setRetryCount(prev => prev + 1);
+    }
+  };
   
   // Handle image click when onClick is provided
   const handleImageClick = onClick ? onClick : undefined;
-  
-  return (
+    return (
     <div className="relative h-full w-full">
-      <Image
+      {/* Loading state */}
+      {imageLoading && !imageError && (
+        <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 flex items-center justify-center z-20">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+        </div>
+      )}      {/* Error state */}
+      {imageError && (
+        <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center z-20 p-4">
+          <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
+          <p className="text-slate-600 dark:text-slate-400 text-sm text-center mb-2">
+            Failed to load image
+          </p>
+          {retryCount < 2 && (
+            <button
+              onClick={retryImageLoad}
+              className="text-xs text-blue-500 hover:text-blue-700 underline"
+            >
+              Retry ({retryCount}/2)
+            </button>
+          )}
+        </div>
+      )}      <Image
         src={imageUrl}
         alt={alt || imageId}
         fill={fill}
-        className={`${className} ${isNsfw && !revealed ? 'blur-xl' : ''}`}
+        className={`${className} ${isNsfw && !revealed ? 'blur-xl' : ''} ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
         sizes={sizes}
         priority={priority}
-        onClick={handleImageClick} // Only pass onClick if it's defined
+        onClick={handleImageClick}
+        onLoad={() => {
+          setImageLoading(false);
+          setImageError(false); // Clear any previous error state
+        }}
+        onError={() => {
+          setImageLoading(false);
+          // Add a slight delay before showing error to handle race conditions
+          setTimeout(() => setImageError(true), 100);
+        }}
+        key={`${imageUrl}-${retryCount}`} // Force re-render on retry
       />
       
       {isNsfw && !revealed && (

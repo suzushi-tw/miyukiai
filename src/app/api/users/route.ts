@@ -90,11 +90,14 @@ export async function POST(request: Request) {
                 include: {
                     _count: {
                         select: { images: true }
-                    },
-                    images: {
-                        take: 1, // Get just the first image for preview
+                    },                    images: {
+                        orderBy: {
+                            order: 'asc'  // Order by the order field to get banner image first
+                        },
+                        take: 1, // Get just the first image for preview (banner image with order 0)
                         select: {
-                            url: true
+                            url: true,
+                            order: true  // Include order field
                         }
                     }
                 }
