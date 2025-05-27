@@ -20,9 +20,7 @@ export async function POST(request: Request) {
 
     if (!sessionData?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Parse request data
+    }    // Parse request data
     const {
       name,
       description,
@@ -35,10 +33,11 @@ export async function POST(request: Request) {
       fileUrl,
       fileName,
       fileSize,
+      fileHash, // Add fileHash field
+      magnetURI, // Add magnetURI field
+      infoHash, // Add infoHash field
       images
-    } = await request.json();
-
-    // Create the model in database
+    } = await request.json();    // Create the model in database
     const model = await db.model.create({
       data: {
         name,
@@ -52,6 +51,9 @@ export async function POST(request: Request) {
         fileUrl,
         fileName,
         fileSize: fileSize?.toString() || "0", // Store as string directly
+        fileHash, // Add fileHash
+        magnetURI, // Add magnetURI
+        infoHash, // Add infoHash
         userId: sessionData.user.id,
         downloads: 0,
         images: {

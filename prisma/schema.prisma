@@ -68,6 +68,8 @@ model Model {
   fileHash     String?      // Added field to store file hash for deduplication
   fileSize     String       // Changed from BigInt to String
   fileName     String
+  magnetURI    String?      // Store torrent magnet link
+  infoHash     String?      // Store torrent info hash for tracking
   downloads    Int          @default(0)
   images       ModelImage[]
   createdAt    DateTime     @default(now())
@@ -75,6 +77,7 @@ model Model {
 
   @@index([userId])
   @@index([fileHash])       // Added index for better query performance when checking duplicates
+  @@index([infoHash])       // Added index for torrent tracking
 }
 
 model ModelImage {

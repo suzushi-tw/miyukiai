@@ -46,7 +46,7 @@ import {
 import { PromptWithCopy } from "@/components/promptwithcopy";
 import { ShareButton } from "@/components/Sharebutton";
 import NsfwImageWrapper from "@/components/NSFWimagewrapper";
-import { DownloadButton } from "@/components/Download";
+import { SimpleDownload } from "@/components/SimpleDownload";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { TriggerWords } from "@/components/Triggerwords";
 import { formatFileSize } from "@/utils/formatFileSize";
@@ -342,14 +342,14 @@ export default async function Page({
 
         <div className="space-y-6 lg:mt-0">
           <Card>
-            <CardContent className="pt-6">
-              <DownloadButton
+            <CardContent className="pt-6">              <SimpleDownload
                 modelId={id}
                 fileUrl={model.fileUrl}
                 fileName={model.fileName}
+                magnetURI={model.magnetURI}
               >
                 Download Model
-              </DownloadButton>
+              </SimpleDownload>
 
               <ShareButton modelId={id} />
 

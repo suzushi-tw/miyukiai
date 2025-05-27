@@ -25,6 +25,7 @@ import { uploadLargeFileToS3, getIncompleteUploads } from "@/lib/multiuploads";
 import { ModelFormSchema, modelFormSchema } from "@/lib/schemas";
 import { extractImageMetadata, ComfyMetadata } from "@/utils/getimgmetadata";
 import { calculateFileHash } from "@/utils/fileHash";
+import { useTorrent } from "@/hooks/use-torrent";
 
 // Direct image upload function with presigned URL
 const uploadImageDirectly = async (file: File): Promise<string> => {
@@ -73,11 +74,16 @@ export default function UploadModelPage() {
     const [isUploading, setIsUploading] = useState(false);
     const [id, setid] = useState("");
     const [nsfwStatus, setNsfwStatus] = useState<Record<number, boolean>>({});
+    const [triggerSeed, setTriggerSeed] = useState(false); // New state for triggering seeding
     
     // Add states for file hashing
     const [isHashing, setIsHashing] = useState(false);
     const [hashProgress, setHashProgress] = useState(0);
-    const [fileHash, setFileHash] = useState<string | null>(null);
+    const [fileHash, setFileHash] = useState<string | null>(null);    // Add torrent seeding states
+    const [enableSeeding, setEnableSeeding] = useState(false);
+    const [magnetURI, setMagnetURI] = useState<string>("");
+    const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
+    const [infoHash, setInfoHash] = useState<string>("");
 
     // Remove NSFW model states - we'll use the ElysiaJS API instead
     const [incompleteUploads, setIncompleteUploads] = useState<{
@@ -154,12 +160,11 @@ export default function UploadModelPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+                },                body: JSON.stringify({
                     ...formData,
                     fileUrl: "",
                     fileName: "",
-                    fileSize: 0,
+                    fileSize: "0", // Convert to string for consistency
                     images: uploadedImageUrls || [],
                 }),
             });
@@ -201,34 +206,47 @@ export default function UploadModelPage() {
             setIsUploading(true);
             toast.info(`Starting upload of ${modelFile.name}...`);
 
-            // Upload the model file first
             const uploadedModelUrl = await uploadLargeFileToS3(modelFile, (progress) => {
                 setUploadProgress(progress);
             });
+            setUploadedFileUrl(uploadedModelUrl);            const updatePayload: any = {
+                id: id,
+                fileUrl: uploadedModelUrl,
+                fileName: modelFile.name,
+                fileSize: modelFile.size.toString(), // Convert to string
+                fileHash: fileHash,
+            };
 
             const response = await fetch('/api/updatemodel', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    id: id,
-                    fileUrl: uploadedModelUrl,
-                    fileName: modelFile.name,
-                    fileSize: modelFile.size,
-                    fileHash: fileHash, // Include the hash in the update
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatePayload),
             });
 
-            toast.success("Model uploaded and published successfully!");
-            setid("");
-            router.push("/dashboard");
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Failed to update model in database:", errorText);
+                throw new Error('Failed to update model in database');
+            }
+              toast.success("Model file uploaded and database updated!");
+
+            if (enableSeeding) {
+                toast.info("Starting P2P torrent creation...");
+                setTriggerSeed(true); 
+                // Navigation will be handled by onSeedComplete callback
+            } else {
+                // If not seeding, navigate immediately
+                toast.success("Model published successfully!");
+                setid(""); 
+                router.push("/dashboard");
+                setIsUploading(false);
+            }
         } catch (error) {
             console.error("Upload error:", error);
             toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        } finally {
-            setIsUploading(false);
+            setIsUploading(false); 
         }
+        // setIsUploading(false) is handled conditionally above or by onSeedComplete
     };
 
     const onSubmit = async (formData: ModelFormSchema) => {
@@ -322,19 +340,45 @@ export default function UploadModelPage() {
             // Reset the file input
             if (e.target) e.target.value = '';
         }
-    };
-
-    // Remove preview image
+    };    // Remove preview image
     const removePreviewImage = (index: number) => {
         const updatedImages = [...previewImages];
         URL.revokeObjectURL(updatedImages[index].preview);
         updatedImages.splice(index, 1);
         setPreviewImages(updatedImages);
 
-        // Also remove the NSFW status for this image
-        const updatedNsfwStatus = { ...nsfwStatus };
-        delete updatedNsfwStatus[index];
+        // Also remove the NSFW status for this image and reindex remaining images
+        const updatedNsfwStatus: Record<number, boolean> = {};
+        Object.entries(nsfwStatus).forEach(([key, value]) => {
+            const keyNum = parseInt(key);
+            if (keyNum < index) {
+                // Keep images before the removed one at the same index
+                updatedNsfwStatus[keyNum] = value;
+            } else if (keyNum > index) {
+                // Shift images after the removed one down by 1
+                updatedNsfwStatus[keyNum - 1] = value;
+            }
+            // Skip the image at the removed index
+        });
         setNsfwStatus(updatedNsfwStatus);
+    };
+
+    // Reorder preview images function
+    const reorderPreviewImages = (reorderedImages: { file: File; preview: string; metadata?: ComfyMetadata }[]) => {
+        setPreviewImages(reorderedImages);
+        
+        // Also reorder NSFW status to match new order
+        const newNsfwStatus: Record<number, boolean> = {};
+        reorderedImages.forEach((reorderedImage, newIndex) => {
+            // Find the original index of this image
+            const originalIndex = previewImages.findIndex(
+                img => img.file === reorderedImage.file && img.preview === reorderedImage.preview
+            );
+            if (originalIndex !== -1 && nsfwStatus[originalIndex] !== undefined) {
+                newNsfwStatus[newIndex] = nsfwStatus[originalIndex];
+            }
+        });
+        setNsfwStatus(newNsfwStatus);
     };
 
     // ------- Resume Upload Logic -------
@@ -437,6 +481,57 @@ export default function UploadModelPage() {
                         previewImages={previewImages}
                         isHashing={isHashing}
                         hashProgress={hashProgress}
+                        enableSeeding={enableSeeding}
+                        onSeedingToggle={setEnableSeeding}
+                        magnetURI={magnetURI}                        onTorrentCreated={async (newMagnetURI, newInfoHash) => {
+                            setMagnetURI(newMagnetURI);
+                            setInfoHash(newInfoHash);
+                            console.log("Torrent metadata generated:", { newMagnetURI, newInfoHash });
+                            toast.info("Torrent metadata ready. Updating server...");
+                            
+                            // Update the model with torrent information using dedicated endpoint
+                            if (id) {
+                                try {
+                                    const torrentUpdateResponse = await fetch('/api/update-torrent', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            modelId: id,
+                                            magnetURI: newMagnetURI,
+                                            infoHash: newInfoHash,
+                                        }),
+                                    });
+                                    
+                                    if (!torrentUpdateResponse.ok) {
+                                        const errorData = await torrentUpdateResponse.json();
+                                        console.error("Failed to update model with torrent info:", errorData);
+                                        throw new Error(errorData.error || 'Failed to update model with torrent info');
+                                    }
+                                    
+                                    const torrentData = await torrentUpdateResponse.json();
+                                    console.log("Torrent info saved to server:", torrentData);
+                                    toast.success("Server updated with torrent info.");
+                                } catch (error) {
+                                    console.error("Error updating model with torrent info:", error);
+                                    toast.error("Failed to save torrent info to server.");
+                                    // Don't block the completion process if torrent update fails
+                                }
+                            } else {
+                                console.warn("Model ID not available for torrent info update.");
+                                toast.warning("Could not save torrent info to server: Model ID missing.");
+                            }
+                        }}
+                        uploadedFileUrl={uploadedFileUrl}
+                        triggerSeed={triggerSeed}
+                        onSeedComplete={() => { 
+                            toast.success("Model published successfully! P2P sharing is now active.");
+                            setTriggerSeed(false); 
+                            setIsUploading(false); 
+                            setid(""); 
+                            setMagnetURI("");
+                            setInfoHash("");
+                            router.push("/dashboard");
+                        }}
                     />
                 );
 

@@ -9,6 +9,8 @@ export interface ApiModel {
     fileUrl: string;
     fileSize: string;  // Changed from bigint | string to just string
     fileName: string;
+    magnetURI?: string | null;  // Add torrent magnet link
+    infoHash?: string | null;   // Add torrent info hash
     downloads: number;
     createdAt: string | Date;
     images?: Array<{
@@ -41,6 +43,8 @@ export interface TransformedModel {
     fileUrl?: string;
     fileName?: string;
     fileSize: string;  // Changed from bigint to string
+    magnetURI?: string | null;  // Add torrent magnet link
+    infoHash?: string | null;   // Add torrent info hash
     downloads: number;
     createdAt: Date;
     updatedAt?: Date;

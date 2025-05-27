@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Download, Tag, Calendar } from "lucide-react"; // Keep Calendar if you plan to add date later
+import { Download, Tag, Calendar, Share2 } from "lucide-react"; // Keep Calendar if you plan to add date later
 import { formatDistanceToNow } from 'date-fns';
 import type { TransformedModel } from '@/types/model';
 import NsfwImageWrapper from './NSFWimagewrapper';
@@ -40,13 +40,21 @@ export default function ModelCard({ model }: ModelCardProps) {
             alt={model.name}
             priority={false}
           />
-        </Link>
-
-        {/* Floating badges - top */}
+        </Link>        {/* Floating badges - top */}
         <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-20 gap-2">
-          <Badge variant="secondary" className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm text-slate-800 dark:text-slate-200 text-xs font-medium px-2.5 py-1 rounded-md shadow-sm border border-white/20 dark:border-slate-700/50">
-            {model.modelType}
-          </Badge>
+          <div className="flex gap-2">
+            <Badge variant="secondary" className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm text-slate-800 dark:text-slate-200 text-xs font-medium px-2.5 py-1 rounded-md shadow-sm border border-white/20 dark:border-slate-700/50">
+              {model.modelType}
+            </Badge>
+            
+            {/* Torrent availability indicator */}
+            {model.magnetURI && (
+              <Badge variant="secondary" className="bg-emerald-500/80 dark:bg-emerald-600/70 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-md shadow-sm border border-emerald-400/20 dark:border-emerald-500/50 flex items-center gap-1" title="Available via P2P torrent">
+                <Share2 className="w-3 h-3" />
+                P2P
+              </Badge>
+            )}
+          </div>
 
           {model.version && (
             <Badge variant="outline" className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm text-slate-700 dark:text-slate-300 text-xs font-medium px-2.5 py-1 rounded-md shadow-sm border border-white/20 dark:border-slate-700/50">
