@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { authClient } from "@/lib/auth-client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { SearchBar } from "@/components/SearchBar"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,8 +105,8 @@ export function Navbar() {
             <SearchBar className="w-[28rem]" />
           </div>
           
-          {/* Navigation Menu (Right of Search Bar) */}
-          <div className="hidden md:flex items-center space-x-2 absolute left-[calc(50%+15rem)]">
+          {/* Navigation Menu (positioned to avoid overlap) */}
+          <div className="hidden md:flex items-center space-x-2 ml-auto mr-4">
             {navigation.map((item) => (
               <Link
                 key={item.name}
@@ -120,115 +121,119 @@ export function Navbar() {
                 {item.name}
               </Link>
             ))}
-          </div>
+          </div>          {/* Right Side: Auth + Theme Toggle */}
+          <div className="hidden md:flex items-center space-x-4">
+            {/* Auth/User Section with consistent width */}
+            <div className="flex items-center space-x-3 min-w-[140px] justify-end">
+              {isPending ? (
+                <div className="h-8 w-20 bg-muted animate-pulse rounded-md"></div>
+              ) : session ? (
+                <>
+                  {/* Create Button - Only shown when logged in */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:bg-secondary hover:text-foreground transition-colors">
+                        <Plus className="h-4 w-4 mr-1" />
+                        Create
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => router.push("/upload/model")}>
+                        <FileCode className="mr-2 h-4 w-4" />
+                        <span>Upload Model</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push("/upload/lora")}>
+                        <FileUp className="mr-2 h-4 w-4" />
+                        <span>Upload LoRA</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-          {/* Auth Buttons or User Menu with Create Button */}
-          <div className="hidden md:flex items-center space-x-3">
-            
-            {isPending ? (
-              <div className="h-8 w-20 bg-muted animate-pulse rounded-md"></div>
-            ) : session ? (
-              <>
-                {/* Create Button - Only shown when logged in */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:bg-secondary hover:text-foreground transition-colors">
-                      <Plus className="h-4 w-4 mr-1" />
-                      Create
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => router.push("/upload/model")}>
-                      <FileCode className="mr-2 h-4 w-4" />
-                      <span>Upload Model</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/upload/lora")}>
-                      <FileUp className="mr-2 h-4 w-4" />
-                      <span>Upload LoRA</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* User Avatar */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center space-x-2 rounded-full focus:outline-none focus:ring-2 focus:ring-primary">
-                      <Avatar className="h-8 w-8">
-                        {session.user.image ? (
-                          <AvatarImage
-                            src={session.user.image}
-                            alt={session.user.name || "User"}
-                          />
-                        ) : (
-                          <AvatarFallback>
-                            {(session.user.name?.charAt(0) || "U").toUpperCase()}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <div className="flex items-center justify-start gap-2 p-2">
-                      <div className="flex flex-col space-y-0.5">
-                        <p className="text-sm font-medium">{session.user.name}</p>
-                        <p className="text-xs text-muted-foreground">{session.user.email}</p>
+                  {/* User Avatar */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center space-x-2 rounded-full focus:outline-none focus:ring-2 focus:ring-primary">
+                        <Avatar className="h-8 w-8">
+                          {session.user.image ? (
+                            <AvatarImage
+                              src={session.user.image}
+                              alt={session.user.name || "User"}
+                            />
+                          ) : (
+                            <AvatarFallback>
+                              {(session.user.name?.charAt(0) || "U").toUpperCase()}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <div className="flex items-center justify-start gap-2 p-2">
+                        <div className="flex flex-col space-y-0.5">
+                          <p className="text-sm font-medium">{session.user.name}</p>
+                          <p className="text-xs text-muted-foreground">{session.user.email}</p>
+                        </div>
                       </div>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={goToDashboard} disabled={!session?.user?.id}>
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Dashboard</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/settings")}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Log out</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            ) : (
-              <div className="flex items-center space-x-3">
-                <Dialog open={showSignIn} onOpenChange={setShowSignIn}>
-                  <DialogTrigger asChild>
-                    <button
-                      className="px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:text-foreground"
-                    >
-                      Login
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <SignIn />
-                  </DialogContent>
-                </Dialog>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={goToDashboard} disabled={!session?.user?.id}>
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Dashboard</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push("/settings")}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Settings</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleSignOut}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Log out</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              ) : (
+                <>
+                  <Dialog open={showSignIn} onOpenChange={setShowSignIn}>
+                    <DialogTrigger asChild>
+                      <button
+                        className="px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:text-foreground"
+                      >
+                        Login
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <SignIn />
+                    </DialogContent>
+                  </Dialog>
 
-                <Dialog open={showSignUp} onOpenChange={setShowSignUp}>
-                  <DialogTrigger asChild>
-                    <button
-                      className="px-4 py-2 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                    >
-                      Sign Up
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <SignUp />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            )}
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
-             {/* Mobile Create Button (if logged in) */}
+                  <Dialog open={showSignUp} onOpenChange={setShowSignUp}>
+                    <DialogTrigger asChild>
+                      <button
+                        className="px-3 py-1.5 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                      >
+                        Sign Up
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <SignUp />
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
+            </div>
+            
+            {/* Theme Toggle - Always positioned at the far right */}
+            <div className="flex-shrink-0">
+              <ThemeToggle />
+            </div>
+          </div>{/* Mobile menu button */}
+          <div className="md:hidden flex items-center space-x-2">
+            {/* Mobile Theme Toggle */}
+            <ThemeToggle />             {/* Mobile Create Button (if logged in) */}
              {session && !isPending && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="p-2 rounded-md text-foreground/70 hover:text-foreground hover:bg-secondary focus:outline-none mr-2">
+                  <button className="p-2 rounded-md text-foreground/70 hover:text-foreground hover:bg-secondary focus:outline-none">
                     <Plus className="h-6 w-6" />
                   </button>
                 </DropdownMenuTrigger>
@@ -243,12 +248,11 @@ export function Navbar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
-            {/* Mobile User Avatar (if logged in) */}
+            )}            {/* Mobile User Avatar (if logged in) */}
             {session && !isPending && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center space-x-2 rounded-full focus:outline-none focus:ring-2 focus:ring-primary mr-2">
+                  <button className="flex items-center space-x-2 rounded-full focus:outline-none focus:ring-2 focus:ring-primary">
                     <Avatar className="h-8 w-8">
                       {session.user.image ? (
                         <AvatarImage
