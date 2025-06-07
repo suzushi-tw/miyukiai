@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNsfwStore } from "@/utils/nsfwstate";
 
 interface NsfwImageWrapperProps {
   imageUrl: string;
@@ -33,6 +34,9 @@ export default function NsfwImageWrapper({
   const [imageError, setImageError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   
+  // Get global NSFW setting
+  const { showNsfwContent } = useNsfwStore();
+  
   const revealImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     setRevealed(true);
@@ -55,14 +59,20 @@ export default function NsfwImageWrapper({
   
   // Handle image click when onClick is provided
   const handleImageClick = onClick ? onClick : undefined;
-    return (
+
+  // Determine if NSFW content should be shown
+  const shouldShowNsfw = showNsfwContent || revealed || !isNsfw;
+
+  return (
     <div className="relative h-full w-full">
       {/* Loading state */}
       {imageLoading && !imageError && (
         <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 flex items-center justify-center z-20">
           <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
         </div>
-      )}      {/* Error state */}
+      )}
+
+      {/* Error state */}
       {imageError && (
         <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center z-20 p-4">
           <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
@@ -78,11 +88,13 @@ export default function NsfwImageWrapper({
             </button>
           )}
         </div>
-      )}      <Image
+      )}
+
+      <Image
         src={imageUrl}
         alt={alt || imageId}
         fill={fill}
-        className={`${className} ${isNsfw && !revealed ? 'blur-xl' : ''} ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+        className={`${className} ${isNsfw && !shouldShowNsfw ? 'blur-xl' : ''} ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
         sizes={sizes}
         priority={priority}
         onClick={handleImageClick}
@@ -98,7 +110,7 @@ export default function NsfwImageWrapper({
         key={`${imageUrl}-${retryCount}`} // Force re-render on retry
       />
       
-      {isNsfw && !revealed && (
+      {isNsfw && !shouldShowNsfw && (
         <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-3 text-center z-10">
           <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
           <p className="text-white text-sm mb-3">Potentially sensitive content</p>
