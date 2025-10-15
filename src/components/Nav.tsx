@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { authClient } from "@/lib/auth-client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { SearchBar } from "@/components/SearchBar"
-import { ThemeToggle } from "@/components/theme-toggle"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -138,8 +137,6 @@ export function Navbar() {
                 )}
               </button>
 
-              <ThemeToggle />
-
               {isPending ? (
                 <div className="flex items-center space-x-2">
                   <div className="h-8 w-8 bg-muted animate-pulse rounded-md"></div>
@@ -249,8 +246,6 @@ export function Navbar() {
                   <EyeOff className="h-5 w-5" />
                 )}
               </button>
-
-              <ThemeToggle />
 
               {session && !isPending && (
                 <DropdownMenu>
